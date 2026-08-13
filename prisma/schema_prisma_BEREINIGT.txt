@@ -1,0 +1,62 @@
+// Q7 — Agenten-Datenbank Schema
+// Speicherort im Projekt: a_Q7-code/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../c_Q7_datenbank/02_Agenten_Datenbank/q7_agenten.db"
+}
+
+model Aufgabe {
+  id            String   @id                     // z.B. "T_00147"
+  kanal         String                            // "email" | "whatsapp" | ...
+  absender      String
+  zeitstempel   DateTime
+  inhalt        String
+  anhaenge      String?                           // JSON-String oder null
+  status        String   @default("OFFEN")        // OFFEN | IN_BEARBEITUNG | GEPRUEFT_HERMES | ANGEPASST_ADMIN | FREIGEGEBEN_ADMIN | ABGELEHNT
+  anliegen_typ  String?
+  ziel_agent    String?
+  dringlichkeit String?
+  konfidenz     String?                           // gruen | gelb | rot
+
+  erstellt_am     DateTime @default(now())
+  aktualisiert_am DateTime @updatedAt
+
+  chats         AufgabeChat[]
+  meineAufgaben MeineAufgabe[]
+
+  @@map("aufgaben")
+}
+
+model AufgabeChat {
+  id          Int      @id @default(autoincrement())
+  aufgabe_id  String
+  absender    String                              // "admin" | "agent" | "hermes"
+  nachricht   String
+  zeitstempel DateTime @default(now())
+
+  aufgabe     Aufgabe  @relation(fields: [aufgabe_id], references: [id])
+
+  @@map("aufgabe_chat")
+}
+
+model MeineAufgabe {
+  id             String    @id @default(cuid())
+  titel          String
+  beschreibung   String?
+  zugewiesen_an  String    @default("admin")   // Rolle/Nutzer laut Rollenmodell (admin | fuehrung | sachbearbeiter | azubi)
+  quelle         String                        // "manuell" | "kanal_verlegt" | "freigabe" (freigabe noch nicht aktiv, wartet auf ergebnisse-Tabelle)
+  status         String    @default("offen")   // offen | erledigt
+  erstellt_am    DateTime  @default(now())
+  erledigt_am    DateTime?
+
+  // Nur gesetzt bei quelle = "kanal_verlegt" — Verweis zurück auf den ursprünglichen Kanal-Task
+  aufgabe_id     String?
+  aufgabe        Aufgabe?  @relation(fields: [aufgabe_id], references: [id])
+
+  @@map("meine_aufgaben")
+}
