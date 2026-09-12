@@ -1,5 +1,50 @@
 // Q7 — Agenten-Datenbank Schema
 // Speicherort im Projekt: a_Q7-code/prisma/schema.prisma
+//
+// Änderungen 02.09.2026 (Posteingang-Basismodul):
+// - Modell "Aufgabe"      -> umbenannt zu "PosteingangEintrag" (Tabelle: posteingang)
+// - Modell "AufgabeChat"  -> umbenannt zu "PosteingangChat"    (Tabelle: posteingang_chat)
+// - Neu: Modelle "Bereich", "Mitarbeiter", "PosteingangVerlauf"
+// - "MeineAufgabe.aufgabe_id" -> umbenannt zu "posteingang_id"
+//
+// Änderungen 03.09.2026 (Einbau Basismodul "Meine Aufgaben"):
+// - MeineAufgabe erweitert um: prioritaet, farbe, absender, kontakt,
+//   original_nachricht, projekt_id (aus dem Basismodul übernommen)
+// - posteingang_id (echte Relation zu PosteingangEintrag) bleibt bestehen,
+//   ersetzt das lose "aufgabe_id"-Feld aus dem ursprünglichen Basismodul-Schema
+// - Neu: Modelle "Teilaufgabe", "MeineAufgabeVerlauf" (aus dem Basismodul)
+// - Nach dieser Änderung: `npx prisma migrate dev --name meine_aufgaben_einbau`
+//   ausführen und das generierte SQL prüfen (ALTER TABLE statt DROP/CREATE,
+//   damit bestehende MeineAufgabe-Zeilen nicht verloren gehen).
+//
+// Änderungen 04.09.2026 (Erweiterung "Meine Aufgaben"):
+// - MeineAufgabe erweitert um: nummer (einfache Anzeige-Nummer, applikations-
+//   seitig vergeben), tags (komma-getrennt, bewusst einfach)
+// - Neu: Modell "MeineAufgabeAnhang" — verknüpft eine Aufgabe mit einem
+//   Eintrag aus lib/ablage.ts (08_ABLAGE), statt eine eigene Datei-Speicherung
+//   zu bauen. Physische Datei + Metadaten bleiben in der Ablage, hier nur die
+//   Verknüpfung.
+// - Nach dieser Änderung: `npx prisma migrate dev --name meine_aufgaben_erweiterung --create-only`
+//   ausführen und das generierte SQL vor dem Anwenden prüfen (nur ALTER TABLE
+//   ADD COLUMN / CREATE TABLE, keine DROP TABLE bei bestehenden Tabellen).
+//
+// Änderungen 04.09.2026 (Notizen):
+// - Neu: Modell "Notiz" — eigenständig, kein Bezug zu MeineAufgabe (Notizen
+//   sind bewusst keine Aufgaben). Lebt im selben Modul als eigener Tab.
+// - Nach dieser Änderung: `npx prisma migrate dev --name notizen_modul --create-only`
+//   ausführen und SQL prüfen (nur CREATE TABLE erwartet).
+//
+// Ergänzungen 08.09.2026 (KI-Agent Basismodul Integration):
+// - Ergänzungen in "Bereich", "Mitarbeiter", "MeineAufgabe"
+// - Neu: Modelle "AgentChat", "AgentChatNachricht", "AgentAktion", "AgentDelegation", "AgentCronLauf", "AgentRoutine"
+//
+// Änderung 11.09.2026 (Punkt 2 — SEC-GATE-Erweiterung Admin-Autonomieänderungen):
+// - AgentAktion erweitert um: geplante_ausfuehrung_am (nullable DateTime)
+//   Cooling-off-Zeitpunkt für Aktionen von Werkzeugen mit erfordertCoolingOff=true
+//   (aktuell nur die neue Admin-Autonomieänderung). Bei allen anderen Werkzeugen
+//   bleibt das Feld immer null — kein Einfluss auf bestehende Aktionen.
+// - Nach dieser Änderung: `npx prisma migrate dev --name cooling_off_autonomieaenderung --create-only`
+//   ausführen und das generierte SQL prüfen (nur ALTER TABLE ADD COLUMN erwartet).
 
 generator client {
   provider = "prisma-client-js"
@@ -7,12 +52,63 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:../c_Q7_datenbank/02_Agenten_Datenbank/q7_agenten.db"
+  url      = env("DATABASE_URL")
 }
 
-model Aufgabe {
+model Bereich {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  erstellt_am DateTime @default(now())
+
+  mitarbeiter Mitarbeiter[]
+  eintraege   PosteingangEintrag[]
+
+  // Chat-Basismodul (04.09.2026): jeder Bereich hat genau einen Chat-Kanal
+  chatKanal   ChatKanal?
+
+  // Kalender-Erweiterung (06.09.2026): jeder Termin gehört zu genau einem Bereich (Pflichtfeld)
+  termine     Termin[]
+
+  // KI-Agent-Ergänzung (08.09.2026)
+  agentChats    AgentChat[]
+  agentAktionen AgentAktion[]
+
+  @@map("bereiche")
+}
+
+model Mitarbeiter {
+  id                  String   @id @default(cuid())
+  name                String
+  bereich_id          String
+  // Sichtbarkeitsregel: true = sieht alle Bereiche (Admin/Chef),
+  // false = sieht nur eigenen Bereich (alle übrigen Mitarbeiter,
+  // unabhängig von Leitungsfunktion).
+  sieht_alle_bereiche Boolean  @default(false)
+  erstellt_am         DateTime @default(now())
+
+  bereich             Bereich  @relation(fields: [bereich_id], references: [id])
+  zugewiesenEintraege PosteingangEintrag[]
+
+  // Chat-Basismodul (04.09.2026):
+  chatNachrichtenGesendet ChatNachricht[] @relation("ChatAbsender")
+  chatNachrichtenErhalten ChatNachricht[] @relation("ChatEmpfaenger")
+
+  // KI-Agent-Ergänzung (08.09.2026)
+  agentChats    AgentChat[]
+  agentRoutinen AgentRoutine[]
+  agentAktionen AgentAktion[]
+  cronLaeufe    AgentCronLauf[]
+
+  // KI-Agent-Ergänzung (08.09.2026)
+  meineAufgaben MeineAufgabe[]
+
+  @@index([bereich_id])
+  @@map("mitarbeiter")
+}
+
+model PosteingangEintrag {
   id            String   @id                     // z.B. "T_00147"
-  kanal         String                            // "email" | "whatsapp" | ...
+  kanal         String                            // "email" | "whatsapp" | "telegram" | "facebook" | "team"
   absender      String
   zeitstempel   DateTime
   inhalt        String
@@ -23,25 +119,64 @@ model Aufgabe {
   dringlichkeit String?
   konfidenz     String?                           // gruen | gelb | rot
 
+  // Neu für Posteingang-Basismodul (Bearbeitungs-Ansicht):
+  prioritaet        String?                       // "niedrig" | "mittel" | "hoch"
+  bereich_id        String?
+  verantwortlich_id String?
+
+  // Offener KI-Vorschlag, bevor ein Mensch ihn freigibt oder ablehnt:
+  ki_vorschlag_status             String?         // "offen" | "uebernommen" | "abgelehnt"
+  ki_vorschlag_prioritaet         String?
+  ki_vorschlag_bereich_id         String?
+  ki_vorschlag_verantwortlich_id  String?
+
   erstellt_am     DateTime @default(now())
   aktualisiert_am DateTime @updatedAt
 
-  chats         AufgabeChat[]
-  meineAufgaben MeineAufgabe[]
+  bereich         Bereich?      @relation(fields: [bereich_id], references: [id])
+  verantwortlich  Mitarbeiter?  @relation(fields: [verantwortlich_id], references: [id])
 
-  @@map("aufgaben")
+  chats           PosteingangChat[]
+  verlauf         PosteingangVerlauf[]
+  meineAufgaben   MeineAufgabe[]
+
+  @@index([status])
+  @@index([kanal, zeitstempel])
+  @@index([bereich_id])
+  @@index([verantwortlich_id])
+  @@map("posteingang")
 }
 
-model AufgabeChat {
-  id          Int      @id @default(autoincrement())
-  aufgabe_id  String
-  absender    String                              // "admin" | "agent" | "hermes"
-  nachricht   String
-  zeitstempel DateTime @default(now())
+model PosteingangChat {
+  id              Int      @id @default(autoincrement())
+  posteingang_id  String
+  absender        String                          // "admin" | "agent" | "hermes"
+  nachricht       String
+  zeitstempel     DateTime @default(now())
 
-  aufgabe     Aufgabe  @relation(fields: [aufgabe_id], references: [id])
+  posteingang     PosteingangEintrag @relation(fields: [posteingang_id], references: [id])
 
-  @@map("aufgabe_chat")
+  @@index([posteingang_id])
+  @@map("posteingang_chat")
+}
+
+// Vollständige, transparente Historie jeder Änderung an einem
+// Posteingang-Eintrag — egal ob durch Mensch oder KI ausgelöst.
+model PosteingangVerlauf {
+  id              Int      @id @default(autoincrement())
+  posteingang_id  String
+  akteur          String                          // "mensch" | "ki"
+  akteur_name     String?                         // z.B. Mitarbeitername, "admin", oder KI-Agent-Bezeichnung
+  aktion          String                          // z.B. "prioritaet_geaendert", "ki_vorschlag_uebernommen"
+  alter_wert      String?
+  neuer_wert      String?
+  kommentar       String?
+  zeitstempel     DateTime @default(now())
+
+  posteingang     PosteingangEintrag @relation(fields: [posteingang_id], references: [id])
+
+  @@index([posteingang_id])
+  @@map("posteingang_verlauf")
 }
 
 model MeineAufgabe {
@@ -54,12 +189,96 @@ model MeineAufgabe {
   erstellt_am    DateTime  @default(now())
   erledigt_am    DateTime?
   faelligkeit    DateTime?
+  nummer         Int?      // Einfache, fortlaufende Anzeige-Nummer (#<nummer>) — applikationsseitig vergeben (nicht DB-Autoincrement, da SQLite das nur auf dem Primary Key erlaubt)
+  tags           String?   // Komma-getrennte Tag-Liste, z.B. "dringend,kunde-x" — bewusst einfach, kein eigenes Tag-Modell
 
-  // Nur gesetzt bei quelle = "kanal_verlegt" — Verweis zurück auf den ursprünglichen Kanal-Task
-  aufgabe_id     String?
-  aufgabe        Aufgabe?  @relation(fields: [aufgabe_id], references: [id])
+  // Aus dem Basismodul "Meine Aufgaben" übernommen (Einbau 03.09.2026):
+  prioritaet     String?                       // "niedrig" | "normal" | "hoch"
+  farbe          String?                       // z.B. blau | rot | orange | gelb | gruen | lila
+  absender            String?
+  kontakt             String?
+  original_nachricht  String?
+  // Lose, ohne @relation — künftiges Projektmanagement-Basismodul existiert noch nicht
+  projekt_id     String?
 
+  // KI-Agent-Ergänzung (08.09.2026): persönliche Zuordnung für AgentRoutine Arbeitsplan
+  mitarbeiter_id String?
+  mitarbeiter    Mitarbeiter? @relation(fields: [mitarbeiter_id], references: [id])
+
+  // Umbenannt von "aufgabe_id" -> "posteingang_id". Nur gesetzt bei
+  // quelle = "kanal_verlegt" — Verweis zurück auf den ursprünglichen Posteingang-Eintrag.
+  posteingang_id String?
+  posteingang    PosteingangEintrag? @relation(fields: [posteingang_id], references: [id])
+
+  teilaufgaben   Teilaufgabe[]
+  verlauf        MeineAufgabeVerlauf[]
+  anhaenge       MeineAufgabeAnhang[]
+
+  @@index([zugewiesen_an, status])
+  @@index([faelligkeit])
+  @@index([posteingang_id])
+  @@index([projekt_id])
   @@map("meine_aufgaben")
+}
+
+model Teilaufgabe {
+  id              String       @id @default(cuid())
+  meineAufgabe_id String
+  titel           String
+  status          String       @default("offen")   // offen | erledigt
+  erstellt_am     DateTime     @default(now())
+  erledigt_am     DateTime?
+
+  meineAufgabe    MeineAufgabe @relation(fields: [meineAufgabe_id], references: [id])
+
+  @@index([meineAufgabe_id])
+  @@map("teilaufgaben")
+}
+
+model MeineAufgabeVerlauf {
+  id              Int          @id @default(autoincrement())
+  meineAufgabe_id String
+  typ             String                              // "kommentar" | "weiterleitung" | "status_geaendert"
+  text            String                              // Freitext, z.B. bei weiterleitung: "von admin an sachbearbeiter_x weitergeleitet"
+  erstellt_von    String
+  erstellt_am     DateTime     @default(now())
+
+  meineAufgabe    MeineAufgabe @relation(fields: [meineAufgabe_id], references: [id])
+
+  @@index([meineAufgabe_id, erstellt_am])
+  @@map("meine_aufgabe_verlauf")
+}
+
+model MeineAufgabeAnhang {
+  id              String       @id @default(cuid())
+  meineAufgabe_id String
+  ablage_id       String                              // Verweis auf den Eintrag in lib/ablage.ts (08_ABLAGE/_index.json) — physische Datei + Metadaten liegen dort, hier nur die Verknüpfung zur Aufgabe
+  hinzugefuegt_am DateTime     @default(now())
+
+  meineAufgabe    MeineAufgabe @relation(fields: [meineAufgabe_id], references: [id])
+
+  @@index([meineAufgabe_id])
+  @@map("meine_aufgabe_anhang")
+}
+
+// Eigenständiges Modell, bewusst OHNE Bezug zu MeineAufgabe — Notizen sind
+// keine Aufgaben (kein Status, keine Fälligkeit), sondern lose, wichtige
+// Informationen (z.B. Kundendetails), die sonst nirgends einen Platz hätten.
+// Leben im selben Modul ("Meine Aufgaben" -> Tab "Notizen"), damit dafür
+// kein zusätzlicher Sidebar-Eintrag nötig ist (Entscheidung 04.09.2026).
+model Notiz {
+  id              String   @id @default(cuid())
+  titel           String
+  text            String
+  kunde           String?                       // freies Textfeld, kein eigenes Kunden-Modell vorhanden
+  projekt_id      String?                       // lose, wie bei MeineAufgabe.projekt_id — kein Projektmanagement-Basismodul vorhanden
+  tags            String?                       // komma-getrennt, gleiche Konvention wie MeineAufgabe.tags
+  erstellt_von    String   @default("admin")
+  erstellt_am     DateTime @default(now())
+  aktualisiert_am DateTime @updatedAt
+
+  @@index([projekt_id])
+  @@map("notizen")
 }
 
 model Termin {
@@ -69,8 +288,188 @@ model Termin {
   start        DateTime
   ende         DateTime
   farbe        String   @default("blau")   // blau | rot | orange | gelb | gruen | lila
+  bereich_id   String                      // Kalender-Erweiterung (06.09.2026): Pflichtfeld, jeder Termin gehört zu genau einem Bereich
   erstellt_am  DateTime @default(now())
 
+  bereich      Bereich  @relation(fields: [bereich_id], references: [id])
+
+  @@index([start, ende])
+  @@index([bereich_id])
   @@map("termine")
 }
 
+// ---------------------------------------------------------------------
+// Chat-Basismodul (eingefügt 04.09.2026)
+// Feldnamen als snake_case, passend zur bestehenden Schema-Konvention.
+// ---------------------------------------------------------------------
+
+model ChatKanal {
+  id          String   @id @default(cuid())
+  name        String
+  bereich_id  String   @unique
+  erstellt_am DateTime @default(now())
+
+  bereich     Bereich         @relation(fields: [bereich_id], references: [id])
+  nachrichten ChatNachricht[]
+
+  @@map("chat_kanaele")
+}
+
+model ChatNachricht {
+  id            String   @id @default(cuid())
+  absender_id   String
+  kanal_id      String?
+  empfaenger_id String?
+  text          String
+  erstellt_am   DateTime @default(now())
+
+  absender      Mitarbeiter  @relation("ChatAbsender", fields: [absender_id], references: [id])
+  kanal         ChatKanal?   @relation(fields: [kanal_id], references: [id])
+  empfaenger    Mitarbeiter? @relation("ChatEmpfaenger", fields: [empfaenger_id], references: [id])
+
+  anhaenge      ChatAnhang[]
+
+  @@index([kanal_id])
+  @@index([empfaenger_id])
+  @@map("chat_nachrichten")
+}
+
+model ChatAnhang {
+  id            String @id @default(cuid())
+  nachricht_id  String
+  dateiname     String
+  pfad          String
+  dateityp      String
+  groesse_bytes Int
+
+  nachricht     ChatNachricht @relation(fields: [nachricht_id], references: [id])
+
+  @@map("chat_anhaenge")
+}
+
+// ---------------------------------------------------------------------
+// KI-Agent Basismodul (eingefügt 08.09.2026)
+// ---------------------------------------------------------------------
+
+model AgentChat {
+  id              String   @id @default(cuid())
+  titel           String   @default("Neuer Chat")
+  titel_status    String   @default("pending")   // pending | final
+  agent           String                          // z.B. "A01 Planung & Vorbereitung (Hermes)"
+  bereich_id      String?
+  mitarbeiter_id  String                          // wer hat den Chat gestartet
+  erstellt_am     DateTime @default(now())
+  aktualisiert_am DateTime @updatedAt
+
+  bereich         Bereich?             @relation(fields: [bereich_id], references: [id])
+  mitarbeiter     Mitarbeiter          @relation(fields: [mitarbeiter_id], references: [id])
+  nachrichten     AgentChatNachricht[]
+  aktionen        AgentAktion[]
+  cronLaeufe      AgentCronLauf[]
+
+  @@index([bereich_id])
+  @@index([mitarbeiter_id])
+  @@map("agent_chats")
+}
+
+model AgentChatNachricht {
+  id            String   @id @default(cuid())
+  agent_chat_id String
+  rolle         String                            // "agent" | "user"
+  label         String                            // Anzeigename
+  text          String
+  usage_json    String?                           // JSON-String: {promptTokens, completionTokens, totalTokens, kostenUsd}
+  erstellt_am   DateTime @default(now())
+
+  agentChat     AgentChat @relation(fields: [agent_chat_id], references: [id])
+
+  @@index([agent_chat_id])
+  @@map("agent_chat_nachrichten")
+}
+
+model AgentAktion {
+  id              String    @id @default(cuid())
+  werkzeug_id     String?                          // lose Referenz auf Werkzeug-Konstante, kein FK
+  typ             String                           // z.B. "Rechnung erstellen"
+  eingabe_daten   String                            // JSON-String
+  status          String    @default("wartet_auf_freigabe") // wartet_auf_freigabe | freigegeben | abgelehnt | ausgefuehrt | fehlgeschlagen
+
+  mitarbeiter_id  String
+  bereich_id      String?
+  agent_chat_id   String?
+
+  ergebnis_text   String?
+  fehlermeldung   String?
+
+  erstellt_am     DateTime  @default(now())
+  entschieden_am  DateTime?
+  entschieden_von String?                          // Mitarbeiter-Id
+  ausgefuehrt_am  DateTime?
+  // NEU (Punkt 2, 11.09.2026): Cooling-off-Zeitpunkt — nur gesetzt bei
+  // Werkzeugen mit erfordertCoolingOff=true (aktuell: Autonomieänderung).
+  // Bei allen anderen Werkzeugen bleibt dieses Feld immer null.
+  geplante_ausfuehrung_am DateTime?
+
+  mitarbeiter     Mitarbeiter @relation(fields: [mitarbeiter_id], references: [id])
+  bereich         Bereich?    @relation(fields: [bereich_id], references: [id])
+  agentChat       AgentChat?  @relation(fields: [agent_chat_id], references: [id])
+
+  @@index([status])
+  @@index([mitarbeiter_id])
+  @@index([bereich_id])
+  @@index([agent_chat_id])
+  @@map("agent_aktionen")
+}
+
+model AgentDelegation {
+  id                String   @id @default(cuid())
+  stufe             String   @default("keine")    // keine | teil | komplett
+  einzel_werkzeuge  String?                        // JSON-String
+  geaendert_am      DateTime @updatedAt
+  geaendert_von     String?                        // Mitarbeiter-Id des Admins
+
+  @@map("agent_delegation")
+}
+
+model AgentCronLauf {
+  id                      String    @id @default(cuid())
+  routine_id              String
+  mitarbeiter_id          String
+  datum                   DateTime
+  status                  String    @default("erfolgreich") // erfolgreich | fehlgeschlagen
+  ergebnis_text           String?
+  fehlermeldung           String?
+  agent_chat_id           String?
+  agent_chat_nachricht_id String?
+  erstellt_am             DateTime  @default(now())
+
+  routine                 AgentRoutine @relation(fields: [routine_id], references: [id])
+  mitarbeiter              Mitarbeiter @relation(fields: [mitarbeiter_id], references: [id])
+  agentChat               AgentChat?  @relation(fields: [agent_chat_id], references: [id])
+
+  @@index([datum])
+  @@index([routine_id])
+  @@index([mitarbeiter_id])
+  @@index([agent_chat_id])
+  @@map("agent_cron_laeufe")
+}
+
+model AgentRoutine {
+  id             String   @id @default(cuid())
+  mitarbeiter_id String
+  typ            String   @default("arbeitsplan")   // z.B. "arbeitsplan"
+  anweisung      String   @default("Erstelle einen priorisierten Arbeitsplan aus meinen offenen Aufgaben.")
+  uhrzeit        String                              // Format "HH:MM"
+  wochentage     String                              // Komma-getrennt: "mo,di,mi,do,fr"
+  aktiv          Boolean  @default(true)
+  letzter_lauf_am DateTime?
+  erstellt_am    DateTime @default(now())
+  geaendert_am   DateTime @updatedAt
+
+  mitarbeiter    Mitarbeiter      @relation(fields: [mitarbeiter_id], references: [id])
+  cronLaeufe     AgentCronLauf[]
+
+  @@index([mitarbeiter_id])
+  @@index([aktiv])
+  @@map("agent_routinen")
+}
