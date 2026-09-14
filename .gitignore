@@ -24,3 +24,7 @@ prisma/schema.prisma[0-9]*
 scripts/poll-log.txt
 
 c_Q7_datenbank/02_Agenten_Datenbank/q7_agenten.db
+
+storage/
+
+git-status.txt

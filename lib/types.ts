@@ -1,5 +1,5 @@
 // lib/types.ts — VOLLSTÄNDIGER Ersatz (nicht nur AGENTS-Block)
-// Aktualisiert 11.07.2026: Agentenmodell-Korrektur nach GF-Entscheidung
+// Aktualisiert 11.07.2026: Agentenmodell-Korrektur nach Admin-Entscheidung
 // (reale Struktur 02_KI-UNTERNEHMEN verbindlich, siehe
 // Q7_KLAERUNGSBEDARF_Agentenmodell.md). "A01a" -> "A01", alle 15 Agenten aktiv.
 // Alle anderen Typen/Konstanten (Space, InputFile, OutputEintrag, WissenEintrag,
@@ -7,7 +7,8 @@
 
 export type AgentKuerzel =
   | "A00" | "A01" | "A02" | "A03" | "A04" | "A05" | "A06" | "A07"
-  | "A08" | "A09" | "A10" | "A11" | "A12" | "A13" | "A14";
+  | "A08" | "A09" | "A10" | "A11" | "A12" | "A13" | "A14"
+  | "A15" | "A16" | "A17";
 
 export interface Agent {
   kuerzel: AgentKuerzel;
@@ -19,7 +20,7 @@ export interface Agent {
 export interface Space {
   id: string;
   name: string;
-  typ: "Solo-Projekt" | "Kunden-Projekt";
+  typ: "Solo-Projekt" | "Lizenznehmer-Projekt";
   aktiv: boolean;
   letzteAktivitaet: string;
 }
@@ -55,7 +56,7 @@ export interface ProtokollEintrag {
   akteur: string;
   aktion: string;
   spaceKontext?: string;
-  thread?: ThreadEintrag[]; // Comment-driven Wakes: GF-Kommentar reaktiviert Agent im selben Thread
+  thread?: ThreadEintrag[]; // Comment-driven Wakes: Admin-Kommentar reaktiviert Agent im selben Thread
 }
 
 export interface ChatUsage {
@@ -99,11 +100,11 @@ export interface ChatMessage {
   vergleich?: VergleichsErgebnis[];
 }
 
-// AGENTS: vollständig nach realer Struktur 02_KI-UNTERNEHMEN (GF-Entscheidung
+// AGENTS: vollständig nach realer Struktur 02_KI-UNTERNEHMEN (Admin-Entscheidung
 // 10.07.2026). "Hermes" bleibt informelle Zusatzbezeichnung für A01
-// (GF-Entscheidung 10.07.2026, siehe Q7_KLAERUNGSBEDARF_Agentenmodell.md).
+// (Admin-Entscheidung 10.07.2026, siehe Q7_KLAERUNGSBEDARF_Agentenmodell.md).
 export const AGENTS: Agent[] = [
-  { kuerzel: "A00", name: "Stab", rolle: "Strategische Planung, GF-Unterstützung, systemweite Überwachung", aktiv: true },
+  { kuerzel: "A00", name: "Stab", rolle: "Strategische Planung, Admin-Unterstützung, systemweite Überwachung", aktiv: true },
   { kuerzel: "A01", name: "Planung & Vorbereitung (Hermes)", rolle: "Haupt-Koordinator, routet alle Anfragen", aktiv: true },
   { kuerzel: "A02", name: "Marketing", rolle: "Kommunikation, Außendarstellung", aktiv: true },
   { kuerzel: "A03", name: "Vertrieb", rolle: "Kundenakquise, Angebote", aktiv: true },
@@ -118,10 +119,13 @@ export const AGENTS: Agent[] = [
   { kuerzel: "A12", name: "Zukunftsforschung", rolle: "Trendanalyse, Innovation", aktiv: true },
   { kuerzel: "A13", name: "Personal", rolle: "Personalwesen", aktiv: true },
   { kuerzel: "A14", name: "Sicherheit", rolle: "Compliance, Datenschutz, SEC-GATE", aktiv: true },
+  { kuerzel: "A15", name: "Q7-ERP Synchronisation", rolle: "Kontext-Synchronisation zwischen Q7-ERP und Q7 (Domain Events, Webhook Connector)", aktiv: true },
+  { kuerzel: "A16", name: "Buchhaltung", rolle: "Finanzbuchhaltung, Belegverarbeitung", aktiv: true },
+  { kuerzel: "A17", name: "Design", rolle: "Gestaltung, Markenidentität, visuelle Konsistenz", aktiv: true },
 ];
 
 export const SPACES: Space[] = [
-  { id: "sp-1", name: "Al Amani Küchen", typ: "Kunden-Projekt", aktiv: true, letzteAktivitaet: "30.06.2026" },
+  { id: "sp-1", name: "Al Amani Küchen", typ: "Lizenznehmer-Projekt", aktiv: true, letzteAktivitaet: "30.06.2026" },
   { id: "sp-2", name: "MK-SALES Rollout", typ: "Solo-Projekt", aktiv: true, letzteAktivitaet: "29.06.2026" },
   { id: "sp-3", name: "Kelaâ Werkstatt Doku", typ: "Solo-Projekt", aktiv: false, letzteAktivitaet: "12.05.2026" },
 ];
