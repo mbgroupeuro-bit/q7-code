@@ -42,8 +42,9 @@ import { useAppState } from "@/lib/store";
 const navGroups = [
   [
     { href: "/dashboard", label: "Überblick", Icon: Home, adminOnly: false },
-    { href: "/input", label: "Posteingang", Icon: Inbox, adminOnly: false, badgeKey: "ungeleseneInputs" as const },
-    { href: "/aufgaben", label: "Aufgaben", Icon: SquareCheck, adminOnly: false, badgeKey: "offeneAufgaben" as const },
+    { href: "/posteingang", label: "Posteingang", Icon: Inbox, adminOnly: false, badgeKey: "ungeleseneInputs" as const },
+    { href: "/aufgaben", label: "Meine Aufgaben", Icon: SquareCheck, adminOnly: false, badgeKey: "offeneAufgaben" as const },
+    { href: "/chat", label: "Chat", Icon: MessageSquare, adminOnly: false },
     { href: "/kalender", label: "Kalender", Icon: Calendar, adminOnly: false },
     { href: "/studio", label: "Entwicklung", Icon: Code, adminOnly: false },
     { href: "/spaces", label: "Arbeitsbereiche", Icon: Package, adminOnly: false },

@@ -1,51 +1,105 @@
-// app/api/meine-aufgaben/aus-kanal/route.ts
-// Neu 01.08.2026 — Quelle "kanal_verlegt" laut Q7_Freigabe_Rechte_Aufgaben_v1_1 Abschnitt 3.
-// VEREINFACHUNG (V1): Admin bestätigt manuell per Klick auf der Eingang-Seite
-// (Button = Bestätigung). Automatische KI-Erkennung "Rückruf gewünscht" durch A01
-// ist noch NICHT gebaut — offener Punkt für spätere Sitzung.
+// Basismodul "Meine Aufgaben" — API-Route für eine einzelne Aufgabe
+// Speicherort: D:\Projekt2027\Q7_Entwicklung\a_Q7-code\app\api\meine-aufgaben\[id]\route.ts
+//
+// GET: liefert eine Aufgabe inkl. Verlauf (für die Detailseite)
+// PATCH: aktualisiert Status, Zuweisung, Priorität, Farbe, Fälligkeit, Projekt, Tags
+// DELETE: löscht die Aufgabe unwiderruflich (inkl. Teilaufgaben/Verlauf/Anhänge)
+//
+// Änderung (04.09.2026, 1): Status-Enum um "in_bearbeitung" erweitert.
+// Änderung (04.09.2026, 2): tags im PATCH ergänzt, DELETE-Handler neu
+// (für das Drei-Punkte-Menü "Löschen" in der Liste).
 
-import { PrismaClient } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { getAufgabenDatenZugriff } from "@/lib/aufgaben-datenzugriff";
+import { getAktuelleRolle } from "@/lib/auth-server";
 
-const globalForPrisma = global as unknown as { prisma?: PrismaClient };
-const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient(
-    process.env.Q7_AGENTEN_DB_URL
-      ? { datasources: { db: { url: process.env.Q7_AGENTEN_DB_URL } } }
-      : undefined
+const PatchSchema = z
+  .object({
+    status: z.enum(["offen", "in_bearbeitung", "erledigt"]).optional(),
+    zugewiesen_an: z.string().trim().min(1).max(200).optional(),
+    prioritaet: z.enum(["niedrig", "normal", "hoch"]).optional(),
+    farbe: z.string().trim().max(50).optional(),
+    faelligkeit: z.string().datetime().nullable().optional(),
+    projekt_id: z.string().trim().max(200).nullable().optional(),
+    tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+  })
+  .refine(
+    (data) => Object.values(data).some((v) => v !== undefined),
+    { message: "Mindestens ein Feld muss angegeben werden." }
   );
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  const datenZugriff = getAufgabenDatenZugriff();
+
+  const aufgabe = await datenZugriff.getAufgabeMitVerlauf(id);
+  if (!aufgabe) {
+    return NextResponse.json(
+      { error: "Aufgabe nicht gefunden.", errorKind: "not_found" },
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json({ aufgabe });
 }
 
-export async function POST(request: Request) {
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const rolle = await getAktuelleRolle();
+  const { id } = await context.params;
+
+  const rohBody = await req.json().catch(() => null);
+  const parsed = PatchSchema.safeParse(rohBody);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Ungültige Anfrage.", errorKind: "validation", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  const datenZugriff = getAufgabenDatenZugriff();
+
   try {
-    const body = await request.json();
-    const { aufgabe_id, zugewiesen_an } = body as { aufgabe_id?: string; zugewiesen_an?: string };
+    const aktualisiert = await datenZugriff.updateAufgabe(id, parsed.data, rolle);
 
-    if (!aufgabe_id) {
-      return NextResponse.json({ error: "aufgabe_id ist erforderlich." }, { status: 400 });
-    }
+    console.log(`Aufgabenliste PATCH: Rolle=${rolle} id=${id}`);
 
-    const kanalTask = await prisma.aufgabe.findUnique({ where: { id: aufgabe_id } });
-    if (!kanalTask) {
-      return NextResponse.json({ error: "Kanal-Task nicht gefunden." }, { status: 404 });
-    }
+    return NextResponse.json({ aufgabe: aktualisiert });
+  } catch (err) {
+    console.error(`PATCH /api/meine-aufgaben/${id} fehlgeschlagen:`, err);
+    return NextResponse.json(
+      { error: "Aktualisierung fehlgeschlagen.", errorKind: "upstream" },
+      { status: 500 }
+    );
+  }
+}
 
-    const neueAufgabe = await prisma.meineAufgabe.create({
-      data: {
-        titel: `${kanalTask.anliegen_typ ?? "Eingang"} — ${kanalTask.absender}`,
-        beschreibung: kanalTask.inhalt,
-        zugewiesen_an: zugewiesen_an?.trim() || "admin",
-        quelle: "kanal_verlegt",
-        aufgabe_id: kanalTask.id,
-      },
-    });
+export async function DELETE(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const rolle = await getAktuelleRolle();
+  const { id } = await context.params;
+  const datenZugriff = getAufgabenDatenZugriff();
 
-    return NextResponse.json({ aufgabe: neueAufgabe }, { status: 201 });
-  } catch (error) {
-    console.error("POST /api/meine-aufgaben/aus-kanal fehlgeschlagen:", error);
-    return NextResponse.json({ error: "Verlegung fehlgeschlagen." }, { status: 500 });
+  try {
+    await datenZugriff.deleteAufgabe(id);
+
+    console.log(`Aufgabenliste DELETE: Rolle=${rolle} id=${id}`);
+
+    return NextResponse.json({ erfolg: true });
+  } catch (err) {
+    console.error(`DELETE /api/meine-aufgaben/${id} fehlgeschlagen:`, err);
+    return NextResponse.json(
+      { error: "Löschen fehlgeschlagen.", errorKind: "upstream" },
+      { status: 500 }
+    );
   }
 }

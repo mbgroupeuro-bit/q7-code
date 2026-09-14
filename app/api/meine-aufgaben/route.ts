@@ -1,47 +1,52 @@
-// app/api/aufgabe-chat/route.ts
-// Neu 05.08.2026 — speichert Admin-Antworten aus dem Posteingang-Antwortpanel.
-// V1: reine Persistenz in AufgabeChat. Echter Kanal-Versand (WhatsApp/Telegram/
-// Facebook/Mail-Ausgang) folgt erst mit dem jeweiligen Connector.
+// app/api/meine-aufgaben/route.ts
+//
+// POST: legt eine neue MeineAufgabe manuell an, quelle="manuell".
+//
+// Änderung (04.09.2026): tags-Feld ergänzt (Array von Strings aus dem
+// Formular, wird im Adapter zu komma-getrenntem String für die DB).
 
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { z } from "zod";
+import { getAufgabenDatenZugriff } from "@/lib/aufgaben-datenzugriff";
+import { getAktuelleRolle } from "@/lib/auth-server";
 
-const globalForPrisma = global as unknown as { prisma?: PrismaClient };
-const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient(
-    process.env.Q7_AGENTEN_DB_URL
-      ? { datasources: { db: { url: process.env.Q7_AGENTEN_DB_URL } } }
-      : undefined
-  );
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+const BodySchema = z.object({
+  titel: z.string().trim().min(1).max(200),
+  beschreibung: z.string().trim().max(5000).optional(),
+  zugewiesen_an: z.string().trim().min(1).max(200).optional(),
+  prioritaet: z.enum(["niedrig", "normal", "hoch"]).optional(),
+  farbe: z.string().trim().max(50).optional(),
+  faelligkeit: z.string().datetime().optional(),
+  projekt_id: z.string().trim().max(200).optional(),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+});
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  const aufgabeId = body?.aufgabe_id;
-  const nachricht = typeof body?.nachricht === "string" ? body.nachricht.trim() : "";
+  const rolle = await getAktuelleRolle();
 
-  if (!aufgabeId || typeof aufgabeId !== "string") {
-    return NextResponse.json({ fehler: "aufgabe_id fehlt." }, { status: 400 });
-  }
-  if (!nachricht) {
-    return NextResponse.json({ fehler: "nachricht ist leer." }, { status: 400 });
-  }
+  const rohBody = await req.json().catch(() => null);
+  const parsed = BodySchema.safeParse(rohBody);
 
-  const aufgabe = await prisma.aufgabe.findUnique({ where: { id: aufgabeId } });
-  if (!aufgabe) {
-    return NextResponse.json({ fehler: "Aufgabe nicht gefunden." }, { status: 404 });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Ungültige Anfrage.", errorKind: "validation", details: parsed.error.flatten() },
+      { status: 400 }
+    );
   }
 
-  const eintrag = await prisma.aufgabeChat.create({
-    data: {
-      aufgabe_id: aufgabeId,
-      absender: "admin",
-      nachricht,
-    },
-  });
+  const datenZugriff = getAufgabenDatenZugriff();
 
-  return NextResponse.json({ eintrag }, { status: 201 });
+  try {
+    const neueAufgabe = await datenZugriff.createAufgabe(parsed.data);
+
+    console.log(`Aufgabenliste POST (manuell): Rolle=${rolle} id=${neueAufgabe.id}`);
+
+    return NextResponse.json({ aufgabe: neueAufgabe }, { status: 201 });
+  } catch (err) {
+    console.error("POST /api/meine-aufgaben fehlgeschlagen:", err);
+    return NextResponse.json(
+      { error: "Anlegen fehlgeschlagen.", errorKind: "upstream" },
+      { status: 500 }
+    );
+  }
 }

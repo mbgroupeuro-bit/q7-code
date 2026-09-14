@@ -26,8 +26,8 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Überblick", href: "/dashboard", icon: Home },
-  { label: "Posteingang", href: "/input", icon: Inbox, badge: 8 },
-  { label: "Aufgaben", href: "/aufgaben", icon: SquareCheck, badge: 12 },
+  { label: "Posteingang", href: "/posteingang", icon: Inbox, badge: 8 },
+  { label: "Meine Aufgaben", href: "/aufgaben", icon: SquareCheck, badge: 12 },
   { label: "Kalender", href: "/kalender", icon: Calendar },
   { label: "Entwicklung", href: "/studio", icon: Star },
   { label: "Arbeitsbereiche", href: "/spaces", icon: Package },
