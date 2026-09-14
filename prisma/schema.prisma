@@ -473,3 +473,24 @@ model AgentRoutine {
   @@index([aktiv])
   @@map("agent_routinen")
 }
+// ERGÄNZUNG zu prisma/schema.prisma
+// Prozessregister: deterministische ID-Vergabe + Ähnlichkeitsprüfung
+// DB ist alleinige Primärquelle (Grill-Entscheidung Punkt 1, 12.09.2026)
+// .md-Frontmatter (prozess_id, status) bleibt rein informativ für Obsidian,
+// wird NICHT mehr maschinell ausgewertet oder synchronisiert.
+
+model ProzessRegisterEintrag {
+  id                    String   @id @default(cuid())
+  prozessId             String   @unique  // z.B. "P_001", "P_002" — vergeben durch lib/prozessRegister.ts
+  titel                 String
+  zweckKurzbeschreibung String   // LLM-Vorschlag + Admin-Freigabe (Grill-Entscheidung Punkt 2, 12.09.2026)
+  embeddingJson         String?  // JSON-Array, Cosine-Similarity-Basis (analog Chronik-Muster aus P_001)
+  embeddingStatus       String   @default("ausstehend") // ausstehend | berechnet | fehlgeschlagen
+  status                String   @default("Entwurf") // Entwurf | Final freigegeben | Deprecated
+  dateipfad             String?  // Referenz zur .md-Datei im Q7-doku-Ordner (rein informativ)
+  erstelltAm            DateTime @default(now())
+  aktualisiertAm        DateTime @updatedAt
+
+  @@index([status])
+  @@index([embeddingStatus])
+}
