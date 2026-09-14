@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Send, GitCompare } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import SpaceSelector from "@/components/SpaceSelector";
 import FileUpload from "@/components/FileUpload";
 import { ChatMessage, SPACES, AGENTS, UploadedFile } from "@/lib/types";
@@ -13,6 +14,20 @@ const WILLKOMMENS_NACHRICHT: ChatMessage = {
   role: "agent",
   label: "Hermes · A01",
   text: "Willkommen bei Q7. Wie kann ich dir heute helfen?",
+};
+
+// Markdown-Rendering: bewusst auf Fett, Listen und Absätze begrenzt
+// (siehe Arbeitsanweisung_KI-Antworten_Umsetzung.md, Punkt 1 — farbige
+// Marker/Emoji-Callouts sind explizit nicht Teil dieses Umfangs).
+const MARKDOWN_ERLAUBTE_ELEMENTE = ["p", "strong", "ul", "ol", "li"];
+const MARKDOWN_KOMPONENTEN = {
+  p: (props: React.ComponentProps<"p">) => <p className="mb-2 last:mb-0" {...props} />,
+  strong: (props: React.ComponentProps<"strong">) => <strong className="font-semibold" {...props} />,
+  ul: (props: React.ComponentProps<"ul">) => <ul className="list-disc pl-5 mb-2 last:mb-0" {...props} />,
+  ol: (props: React.ComponentProps<"ol">) => (
+    <ol className="list-decimal pl-5 mb-2 last:mb-0 marker:font-semibold" {...props} />
+  ),
+  li: (props: React.ComponentProps<"li">) => <li className="mb-0.5" {...props} />,
 };
 
 export default function ChatWindow() {
@@ -276,7 +291,19 @@ export default function ChatWindow() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agent, space, message: text, anhangIds }),
+        // NEU (KI-Agent): chatId mitschicken, damit die Route den Verlauf im
+        // Hintergrund spiegeln kann (siehe Grill-Me "Mitschreiben im
+        // Hintergrund"). NEU (Fixrunde Punkt 5): verlauf mitschicken
+        // (bisherige Nachrichten dieses Chats, vor der aktuellen) — behebt
+        // den Kontextverlust, da die KI sonst nur die letzte Nachricht sah.
+        body: JSON.stringify({
+          agent,
+          space,
+          message: text,
+          anhangIds,
+          chatId,
+          verlauf: messages.map((m) => ({ role: m.role, text: m.text })),
+        }),
       });
 
       if (!res.ok) throw new Error("Antwort fehlgeschlagen");
@@ -346,8 +373,14 @@ export default function ChatWindow() {
                 {m.vergleich.map((e) => (
                   <div key={e.modell} className="rounded-[12px] border border-[#e2e8f0] bg-white p-3">
                     <div className="mb-2 truncate text-[11.5px] font-semibold text-[#2563eb]">{e.modell}</div>
-                    <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-[#0f172a]">
-                      {e.reply}
+                    <div className="text-[13px] leading-relaxed text-[#0f172a]">
+                      <ReactMarkdown
+                        allowedElements={MARKDOWN_ERLAUBTE_ELEMENTE}
+                        unwrapDisallowed
+                        components={MARKDOWN_KOMPONENTEN}
+                      >
+                        {e.reply}
+                      </ReactMarkdown>
                     </div>
                     {e.usage && (
                       <div className="mt-2 border-t border-[#e2e8f0] pt-2 text-[10.5px] text-[#94a3b8]">
@@ -372,7 +405,17 @@ export default function ChatWindow() {
                   m.role === "user" ? "bg-[#2563eb] text-white" : "bg-[#f1f5f9] text-[#0f172a]"
                 }`}
               >
-                {m.text}
+                {m.role === "user" ? (
+                  m.text
+                ) : (
+                  <ReactMarkdown
+                    allowedElements={MARKDOWN_ERLAUBTE_ELEMENTE}
+                    unwrapDisallowed
+                    components={MARKDOWN_KOMPONENTEN}
+                  >
+                    {m.text}
+                  </ReactMarkdown>
+                )}
               </div>
               {m.usage && (
                 <div className="mt-1 px-1 text-[10.5px] text-[#94a3b8]">
