@@ -45,6 +45,22 @@
 //   bleibt das Feld immer null — kein Einfluss auf bestehende Aktionen.
 // - Nach dieser Änderung: `npx prisma migrate dev --name cooling_off_autonomieaenderung --create-only`
 //   ausführen und das generierte SQL prüfen (nur ALTER TABLE ADD COLUMN erwartet).
+//
+// Änderung 14.09.2026 (Projekte — Kontext + Memory, Ausbaustufe 1, Grill-Entscheidung):
+// - Neu: Modelle "Projekt", "ProjektKontextDatei", "ProjektErinnerung"
+//   (Claude.ai-Projects-Analog: eigener Kontext/Anhänge + nächtlich verdichtetes Memory je Projekt)
+// - AgentChat erweitert um: projekt_id (nullable, KEIN Backfill — Grill Punkt 2)
+// - Bewusst NICHT angefasst (Grill Punkt 4, Scope-Begrenzung): MeineAufgabe.projekt_id
+//   und Notiz.projekt_id bleiben lose Felder ohne @relation, wie bisher.
+// - Kein Mandanten-/Firma-Feld an Projekt (Grill Punkt 1) — Multi-Tenant-Trennung ist
+//   eine plattformweite, noch offene Grundsatzfrage (Backlog), kein Projekt-Feature-Thema.
+// - ProjektErinnerung.status/fehlermeldung (Grill Punkt 3) analog AgentCronLauf-Muster,
+//   damit Fehler im nächtlichen Verdichtungs-Job nicht still verlorengehen.
+// - Verdichtungs-Job MUSS ausschließlich rufeKIAn() aus lib/rufeKIAn.ts importieren
+//   (Grill Punkt 5) — kein direkter OpenRouter-Zugriff im Job-Datei-Scope.
+// - Nach dieser Änderung: `npx prisma migrate dev --name projekt_kontext_memory --create-only`
+//   ausführen und das generierte SQL vor dem Anwenden prüfen (nur CREATE TABLE /
+//   ALTER TABLE ADD COLUMN erwartet, keine DROP TABLE bei bestehenden Tabellen).
 
 generator client {
   provider = "prisma-client-js"
@@ -101,6 +117,9 @@ model Mitarbeiter {
 
   // KI-Agent-Ergänzung (08.09.2026)
   meineAufgaben MeineAufgabe[]
+
+  // Projekte-Ergänzung (14.09.2026, Ausbaustufe 1)
+  projekte      Projekt[]
 
   @@index([bereich_id])
   @@map("mitarbeiter")
@@ -358,17 +377,22 @@ model AgentChat {
   agent           String                          // z.B. "A01 Planung & Vorbereitung (Hermes)"
   bereich_id      String?
   mitarbeiter_id  String                          // wer hat den Chat gestartet
+  // Projekte-Ergänzung (14.09.2026, Ausbaustufe 1): optional, KEIN Backfill (Grill Punkt 2) —
+  // bestehende Chats bleiben ohne Projekt-Zuordnung, neue können zugeordnet werden.
+  projekt_id      String?
   erstellt_am     DateTime @default(now())
   aktualisiert_am DateTime @updatedAt
 
   bereich         Bereich?             @relation(fields: [bereich_id], references: [id])
   mitarbeiter     Mitarbeiter          @relation(fields: [mitarbeiter_id], references: [id])
+  projekt         Projekt?             @relation(fields: [projekt_id], references: [id])
   nachrichten     AgentChatNachricht[]
   aktionen        AgentAktion[]
   cronLaeufe      AgentCronLauf[]
 
   @@index([bereich_id])
   @@index([mitarbeiter_id])
+  @@index([projekt_id])
   @@map("agent_chats")
 }
 
@@ -493,4 +517,54 @@ model ProzessRegisterEintrag {
 
   @@index([status])
   @@index([embeddingStatus])
+}
+
+// ---------------------------------------------------------------------
+// Projekte — Kontext + Memory (eingefügt 14.09.2026, Ausbaustufe 1)
+// Claude.ai-Projects-Analog: eigener Kontext (Anhänge) + nächtlich
+// verdichtetes Memory je Projekt. Grill-Entscheidung siehe Header-Kommentar.
+// ---------------------------------------------------------------------
+
+model Projekt {
+  id              String   @id @default(cuid())
+  mitarbeiter_id  String
+  name            String
+  beschreibung    String?
+  angeheftet      Boolean  @default(false)
+  erstellt_am     DateTime @default(now())
+  aktualisiert_am DateTime @updatedAt
+
+  mitarbeiter     Mitarbeiter @relation(fields: [mitarbeiter_id], references: [id])
+
+  chats           AgentChat[]
+  kontextDateien  ProjektKontextDatei[]
+  erinnerung      ProjektErinnerung?
+
+  @@index([mitarbeiter_id])
+  @@map("projekte")
+}
+
+model ProjektKontextDatei {
+  id              String   @id @default(cuid())
+  projekt_id      String
+  ablage_id       String                              // Verweis auf lib/ablage.ts (08_ABLAGE) — gleiches Muster wie MeineAufgabeAnhang
+  hinzugefuegt_am DateTime @default(now())
+
+  projekt         Projekt  @relation(fields: [projekt_id], references: [id])
+
+  @@index([projekt_id])
+  @@map("projekt_kontext_dateien")
+}
+
+model ProjektErinnerung {
+  id                    String    @id @default(cuid())
+  projekt_id            String    @unique
+  inhalt                String?                       // KI-verdichteter Memory-Text (nächtlicher Batch-Job)
+  status                String    @default("ausstehend") // ausstehend | erfolgreich | fehlgeschlagen
+  fehlermeldung         String?
+  letzte_aktualisierung DateTime  @updatedAt
+
+  projekt               Projekt   @relation(fields: [projekt_id], references: [id])
+
+  @@map("projekt_erinnerung")
 }
