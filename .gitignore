@@ -7,3 +7,20 @@ node_modules
 
 /lib/generated/prisma
 
+# SQLite-Datenbank nie versionieren — Pfad kommt zur Laufzeit aus DATABASE_URL,
+# der Datenbank-Inhalt selbst gehört nicht ins Repo (Code Review, Aufräumen).
+*.db
+*.db-journal
+
+# Poller-Log und einmalige Arbeitsdateien, die nie ins Repo gehörten
+scripts/poll-log.txt
+struktur.txt
+schema_prisma_BEREINIGT.txt
+*.lnk
+
+
+prisma/schema.prisma[0-9]*
+
+scripts/poll-log.txt
+
+c_Q7_datenbank/02_Agenten_Datenbank/q7_agenten.db
