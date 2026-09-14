@@ -1,14 +1,34 @@
 // app/kalender/KalenderView.tsx (Client Component)
-// Aktualisiert 02.08.2026 — finales Layout laut Mockup-Abstimmung:
-// rechte Spalte Reihenfolge: Mini-Monatsübersicht → Meine Aufgaben → Erledigte
-// Aufgaben. Terminblöcke im Farbbalken-Stil (linker Akzentstreifen statt
-// Vollrahmen). Monatsansicht bewusst mit einfachen Chips (V1) — Balken über
-// mehrere Tage folgt später, siehe Q7-Aufgabenliste.
+// Aktualisiert 04.09.2026 — Kalender-Basismodul:
+// - Termine sind bereichsbezogen (bereich_id). Formular zeigt Bereich nur
+//   als Auswahl, wenn sieht_alle_bereiche = true, sonst fest der eigene
+//   Bereich.
+// - Fällige, offene Aufgaben werden zusätzlich als reine Anzeige in
+//   Tag-/Wochenansicht (eigene Zeile) und Monatsansicht (eigener Chip-Stil)
+//   eingeblendet — kein eigener Termin-Datensatz (Grill-Me-Entscheidung
+//   "Option B"). Optisch unterschieden durch gestrichelten, neutralen Chip
+//   plus Kästchen-Symbol, damit sie nie mit einem echten Termin verwechselt
+//   werden.
+//
+// Ursprüngliches Layout (rechte Spalte: Mini-Monat → Meine Aufgaben →
+// Erledigte Aufgaben) bleibt unverändert bestehen.
+//
+// Geändert 13.09.2026 (Kalender-Fixes-Session), Punkt 1 der Übergabe
+// "Q7 – Kalender-Fixes": Termine waren in keiner Ansicht klickbar/
+// bearbeitbar. Lösung (Variante a, mit Mokid abgestimmt): dasselbe
+// Formular wie beim Neu-Anlegen wird jetzt auch fürs Bearbeiten genutzt,
+// vorausgefüllt mit den Werten des angeklickten Termins. Klick-Handler
+// wurden in allen vier Ansichten ergänzt (Liste, Tag, Woche, Monat).
+// Bereich ist im Bearbeiten-Modus bewusst nicht änderbar (siehe
+// TerminAktualisieren in adapter-interface.ts — Bereichswechsel eines
+// bestehenden Termins ist ein eigenständiges, noch nicht besprochenes
+// Thema wegen Sichtbarkeits-Konsequenzen für andere Mitarbeiter).
 
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import EintragDialog from "@/lib/verdrahtung/EintragDialog";
 
 type Termin = {
   id: string;
@@ -17,6 +37,8 @@ type Termin = {
   start: string;
   ende: string;
   farbe: string;
+  bereich_id: string;
+  bereich_name: string;
 };
 
 type Aufgabe = {
@@ -29,6 +51,18 @@ type Aufgabe = {
 type ErledigteAufgabe = {
   id: string;
   titel: string;
+};
+
+type Bereich = {
+  id: string;
+  name: string;
+};
+
+type MitarbeiterKontext = {
+  id: string;
+  bereich_id: string;
+  bereich_name: string;
+  sieht_alle_bereiche: boolean;
 };
 
 type Ansicht = "liste" | "tag" | "woche" | "monat";
@@ -44,8 +78,20 @@ const FARBEN: Record<string, { bg: string; kante: string; text: string; label: s
 
 const STUNDEN = Array.from({ length: 13 }, (_, i) => i + 7); // 07:00–19:00
 
+// Geändert 13.09.2026 (Kalender-Fixes-Session), Punkt 4 der Übergabe
+// "Q7 – Kalender-Fixes": toISOString() liefert UTC, nicht lokale Zeit.
+// Die Wochentag-Spalten wurden über new Date(jahr, monat, tag) (lokale
+// Mitternacht) gebaut und DANACH mit toISOString() in UTC umgewandelt —
+// bei UTC+2 (deutscher Sommerzeit) rutscht z.B. lokale Mitternacht des
+// 18.09. auf 17.09. 22:00 UTC, wodurch die Spalte "18.09." intern den
+// Schlüssel "17.09." bekam. Ein Termin am 17.09. tagsüber (UTC-Zeit noch
+// am selben Tag) bekam ebenfalls den Schlüssel "17.09." — beide trafen
+// sich fälschlich, der Termin erschien unter der sichtbar falschen Spalte.
+// Betraf praktisch jeden Termin, nicht nur späte Uhrzeiten. Fix: rein
+// lokale Datumskomponenten verwenden, kein UTC-Umweg mehr.
 function tagStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function startOfWeek(d: Date): Date {
@@ -68,6 +114,15 @@ function formatDatum(iso: string): string {
   return new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
 }
 
+// Für datetime-local-Inputs: ISO-String -> "YYYY-MM-DDTHH:mm" in lokaler
+// Zeit (nicht UTC, sonst würde ein Termin beim Bearbeiten in der falschen
+// Stunde/am falschen Tag im Formular erscheinen).
+function isoZuDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function faelligkeitLabel(iso: string | null): string {
   if (!iso) return "—";
   const heute = tagStr(new Date());
@@ -76,11 +131,27 @@ function faelligkeitLabel(iso: string | null): string {
   return new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit" }).format(new Date(iso));
 }
 
+// Kleiner, neutraler Chip für fällige Aufgaben — bewusst optisch anders als
+// ein Termin (gestrichelt, grau, Kästchen-Symbol), damit nie der Eindruck
+// entsteht, es handle sich um einen echten Termin.
+function AufgabenChip({ titel }: { titel: string }) {
+  return (
+    <div className="flex items-center gap-1 truncate rounded-[4px] border-l-[3px] border-dashed border-slate-400 bg-slate-50 px-1.5 py-0.5 text-[10.5px] text-slate-600">
+      <span aria-hidden="true">☐</span>
+      <span className="truncate">{titel}</span>
+    </div>
+  );
+}
+
 export default function KalenderView({
+  mitarbeiter,
+  bereiche,
   initialTermine,
   initialAufgaben,
   initialErledigt,
 }: {
+  mitarbeiter: MitarbeiterKontext;
+  bereiche: Bereich[];
   initialTermine: Termin[];
   initialAufgaben: Aufgabe[];
   initialErledigt: ErledigteAufgabe[];
@@ -90,34 +161,89 @@ export default function KalenderView({
   const [ansicht, setAnsicht] = useState<Ansicht>("woche");
   const [bezugsdatum, setBezugsdatum] = useState(new Date());
   const [formOffen, setFormOffen] = useState(false);
+  // null = Neu-Anlegen-Modus, sonst ID des gerade bearbeiteten Termins.
+  const [bearbeitungId, setBearbeitungId] = useState<string | null>(null);
+  // Geändert 13.09.2026: "+ Neuer Termin" öffnet jetzt den gemeinsamen
+  // EintragDialog (Termin/Aufgabe-Tabs) statt dieses Inline-Formular hier.
+  // formOffen/bearbeitungId dienen ab jetzt ausschließlich dem BEARBEITEN
+  // bestehender Termine (ausgelöst über terminBearbeiten beim Anklicken).
+  const [dialogOffen, setDialogOffen] = useState(false);
   const [titel, setTitel] = useState("");
   const [startZeit, setStartZeit] = useState("");
   const [endeZeit, setEndeZeit] = useState("");
   const [farbe, setFarbe] = useState("blau");
+  const [bereichId, setBereichId] = useState(mitarbeiter.bereich_id);
+  const [bereichName, setBereichName] = useState(mitarbeiter.bereich_name);
 
   const termine = initialTermine;
   const heute = tagStr(new Date());
 
-  async function termineAnlegen(e: React.FormEvent) {
-    e.preventDefault();
-    if (!titel.trim() || !startZeit || !endeZeit) return;
+  // Nur Aufgaben mit gesetzter Fälligkeit werden im Kalender selbst
+  // eingeblendet (Sidebar-Widget unten zeigt weiterhin alle offenen
+  // Aufgaben, unabhängig von Fälligkeit).
+  const faelligeAufgaben = useMemo(
+    () => initialAufgaben.filter((a) => a.faelligkeit !== null),
+    [initialAufgaben]
+  );
 
-    await fetch("/api/termine", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ titel, start: startZeit, ende: endeZeit, farbe }),
-    });
-
+  function formularZuruecksetzen() {
     setTitel("");
     setStartZeit("");
     setEndeZeit("");
     setFarbe("blau");
+    setBereichId(mitarbeiter.bereich_id);
+    setBereichName(mitarbeiter.bereich_name);
+    setBearbeitungId(null);
+  }
+
+  function terminBearbeiten(t: Termin) {
+    setBearbeitungId(t.id);
+    setTitel(t.titel);
+    setStartZeit(isoZuDatetimeLocal(t.start));
+    setEndeZeit(isoZuDatetimeLocal(t.ende));
+    setFarbe(t.farbe);
+    setBereichId(t.bereich_id);
+    setBereichName(t.bereich_name);
+    setFormOffen(true);
+  }
+
+  function formularAbbrechen() {
+    formularZuruecksetzen();
+    setFormOffen(false);
+  }
+
+  async function termineSpeichern(e: React.FormEvent) {
+    e.preventDefault();
+    if (!titel.trim() || !startZeit || !endeZeit) return;
+
+    if (bearbeitungId) {
+      // Bearbeiten: bereich_id bewusst NICHT mitgeschickt (siehe
+      // TerminAktualisieren — Bereichswechsel ist nicht Teil dieser
+      // Änderung).
+      await fetch(`/api/termine/${bearbeitungId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titel, start: startZeit, ende: endeZeit, farbe }),
+      });
+    } else {
+      await fetch("/api/termine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titel, start: startZeit, ende: endeZeit, farbe, bereich_id: bereichId }),
+      });
+    }
+
+    formularZuruecksetzen();
     setFormOffen(false);
     startTransition(() => router.refresh());
   }
 
   async function termineLoeschen(id: string) {
     await fetch(`/api/termine/${id}`, { method: "DELETE" });
+    if (bearbeitungId === id) {
+      formularZuruecksetzen();
+      setFormOffen(false);
+    }
     startTransition(() => router.refresh());
   }
 
@@ -165,6 +291,11 @@ export default function KalenderView({
   function termineAmTag(d: Date): Termin[] {
     const key = tagStr(d);
     return termine.filter((t) => tagStr(new Date(t.start)) === key);
+  }
+
+  function aufgabenAmTag(d: Date): Aufgabe[] {
+    const key = tagStr(d);
+    return faelligeAufgaben.filter((a) => tagStr(new Date(a.faelligkeit as string)) === key);
   }
 
   function terminPosition(t: Termin) {
@@ -220,18 +351,30 @@ export default function KalenderView({
           )}
 
           <button
-            onClick={() => setFormOffen((v) => !v)}
+            onClick={() => setDialogOffen(true)}
             className="ml-auto rounded-[8px] bg-[#2563eb] px-3.5 py-2 text-sm font-medium text-white hover:opacity-90"
           >
-            + Neuer Termin
+            + Neuer Eintrag
           </button>
         </div>
 
+        <EintragDialog
+          offen={dialogOffen}
+          onClose={() => setDialogOffen(false)}
+          onGespeichert={() => startTransition(() => router.refresh())}
+          standardTab="termin"
+          mitarbeiter={mitarbeiter}
+          bereiche={bereiche}
+        />
+
         {formOffen && (
           <form
-            onSubmit={termineAnlegen}
+            onSubmit={termineSpeichern}
             className="mb-4 flex flex-wrap items-end gap-2 rounded-[10px] border border-[#e2e8f0] bg-white p-4"
           >
+            {bearbeitungId && (
+              <div className="mb-1 w-full text-[12px] font-medium text-[#2563eb]">Termin bearbeiten</div>
+            )}
             <div className="flex-1 min-w-[160px]">
               <label className="mb-1 block text-[12px] font-medium text-[#64748b]">Titel</label>
               <input
@@ -271,12 +414,46 @@ export default function KalenderView({
                 ))}
               </select>
             </div>
+            <div>
+              <label className="mb-1 block text-[12px] font-medium text-[#64748b]">Bereich</label>
+              {bearbeitungId ? (
+                // Im Bearbeiten-Modus bewusst nicht änderbar (siehe
+                // TerminAktualisieren in adapter-interface.ts).
+                <div
+                  className="rounded-[6px] border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1.5 text-sm text-[#64748b]"
+                  title="Bereich kann nachträglich nicht geändert werden."
+                >
+                  {bereichName}
+                </div>
+              ) : mitarbeiter.sieht_alle_bereiche ? (
+                <select
+                  value={bereichId}
+                  onChange={(e) => setBereichId(e.target.value)}
+                  className="rounded-[6px] border border-[#e2e8f0] px-2.5 py-1.5 text-sm"
+                >
+                  {bereiche.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <div className="rounded-[6px] border border-[#e2e8f0] bg-[#f8fafc] px-2.5 py-1.5 text-sm text-[#64748b]">
+                  {mitarbeiter.bereich_name}
+                </div>
+              )}
+            </div>
             <button
               type="submit"
               disabled={!titel.trim() || !startZeit || !endeZeit}
               className="rounded-[6px] bg-[#2563eb] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
             >
-              Speichern
+              {bearbeitungId ? "Änderungen speichern" : "Speichern"}
+            </button>
+            <button
+              type="button"
+              onClick={formularAbbrechen}
+              className="rounded-[6px] px-3 py-1.5 text-sm font-medium text-[#64748b] hover:bg-[#f8fafc]"
+            >
+              Abbrechen
             </button>
           </form>
         )}
@@ -291,12 +468,18 @@ export default function KalenderView({
               const f = FARBEN[t.farbe] ?? FARBEN.blau;
               return (
                 <div key={t.id} className={`flex items-center gap-3 border-b border-l-[3px] ${f.kante} border-[#e2e8f0] px-4 py-3 last:border-b-0`}>
-                  <div className="flex-1">
+                  <button
+                    type="button"
+                    onClick={() => terminBearbeiten(t)}
+                    className="flex-1 text-left hover:opacity-80"
+                    title="Klicken zum Bearbeiten"
+                  >
                     <div className="text-sm font-medium">{t.titel}</div>
                     <div className="text-[12px] text-[#64748b]">
                       {formatDatum(t.start)} · {formatZeit(t.start)}–{formatZeit(t.ende)}
+                      {mitarbeiter.sieht_alle_bereiche && <> · {t.bereich_name}</>}
                     </div>
-                  </div>
+                  </button>
                   <button
                     onClick={() => termineLoeschen(t.id)}
                     className="text-[12px] text-[#94a3b8] hover:text-red-600"
@@ -313,6 +496,15 @@ export default function KalenderView({
         {ansicht === "tag" && (
           <div className="overflow-hidden rounded-[12px] border border-[#e2e8f0] bg-white">
             <div className="border-b border-[#e2e8f0] px-4 py-2 text-sm font-medium">{formatTag(bezugsdatum)}</div>
+
+            {aufgabenAmTag(bezugsdatum).length > 0 && (
+              <div className="flex flex-wrap gap-1 border-b border-[#e2e8f0] px-4 py-1.5">
+                {aufgabenAmTag(bezugsdatum).map((a) => (
+                  <AufgabenChip key={a.id} titel={a.titel} />
+                ))}
+              </div>
+            )}
+
             <div className="relative" style={{ height: `${STUNDEN.length * 48}px` }}>
               {STUNDEN.map((h) => (
                 <div key={h} className="absolute left-0 right-0 border-t border-[#f1f5f9]" style={{ top: `${(h - STUNDEN[0]) * 48}px` }}>
@@ -326,8 +518,12 @@ export default function KalenderView({
                   return (
                     <div
                       key={t.id}
+                      onClick={() => terminBearbeiten(t)}
+                      role="button"
+                      tabIndex={0}
+                      title="Klicken zum Bearbeiten"
                       style={{ position: "absolute", top: pos.top, height: pos.height, left: 0, right: 0 }}
-                      className={`overflow-hidden rounded-r-[4px] border-l-[3px] ${f.kante} ${f.bg} px-2 py-1 text-[12px] ${f.text}`}
+                      className={`cursor-pointer overflow-hidden rounded-r-[4px] border-l-[3px] ${f.kante} ${f.bg} px-2 py-1 text-[12px] ${f.text} hover:opacity-80`}
                     >
                       <div className="font-medium truncate">{t.titel}</div>
                       <div className="truncate">{formatZeit(t.start)}–{formatZeit(t.ende)}</div>
@@ -355,6 +551,33 @@ export default function KalenderView({
                 </div>
               ))}
             </div>
+
+            {/* Fällige Aufgaben je Tag — reine Anzeige, kein Termin-Datensatz */}
+            {faelligeAufgaben.length > 0 && (
+              <div className="grid grid-cols-[44px_repeat(7,1fr)] border-b border-[#e2e8f0]">
+                <div />
+                {wochenTage.map((d) => (
+                  // min-w-0 ist hier entscheidend (Punkt 3 der Kalender-Fixes,
+                  // 13.09.2026): Ohne min-w-0 verhält sich eine 1fr-Grid-Spalte
+                  // wie minmax(auto, 1fr) — sie kann NICHT unter die
+                  // intrinsische Mindestbreite ihres Inhalts schrumpfen. Ein
+                  // langer, wegen "truncate" (white-space: nowrap) nicht
+                  // umbrechbarer Aufgaben-Titel konnte dadurch genau die
+                  // Spalte des Tages, an dem die Aufgabe hängt, breiter als
+                  // die übrigen sechs Tage aufblähen (beobachtet: Montag
+                  // sichtbar breiter als die restlichen Wochentage).
+                  // min-w-0 erzwingt, dass die Spalte trotzdem auf 1fr
+                  // schrumpft und der Inhalt stattdessen wie vorgesehen
+                  // per truncate abgeschnitten wird.
+                  <div key={`aufg-${tagStr(d)}`} className="min-w-0 space-y-0.5 border-l border-[#e2e8f0] p-1">
+                    {aufgabenAmTag(d).map((a) => (
+                      <AufgabenChip key={a.id} titel={a.titel} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="relative grid grid-cols-[44px_repeat(7,1fr)]" style={{ height: `${STUNDEN.length * 48}px` }}>
               {/* Durchgehende horizontale Stundenlinien über die volle Breite */}
               {STUNDEN.map((h) => (
@@ -380,8 +603,12 @@ export default function KalenderView({
                     return (
                       <div
                         key={t.id}
+                        onClick={() => terminBearbeiten(t)}
+                        role="button"
+                        tabIndex={0}
+                        title="Klicken zum Bearbeiten"
                         style={{ position: "absolute", top: pos.top, height: pos.height, left: 2, right: 2 }}
-                        className={`overflow-hidden rounded-r-[4px] border-l-[3px] ${f.kante} ${f.bg} px-1 text-[10.5px] ${f.text}`}
+                        className={`cursor-pointer overflow-hidden rounded-r-[4px] border-l-[3px] ${f.kante} ${f.bg} px-1 text-[10.5px] ${f.text} hover:opacity-80`}
                       >
                         <div className="font-medium truncate">{t.titel}</div>
                       </div>
@@ -405,6 +632,13 @@ export default function KalenderView({
               {monatsGrid.map((d) => {
                 const imMonat = d.getMonth() === bezugsdatum.getMonth();
                 const tagesTermine = termineAmTag(d);
+                const tagesAufgaben = aufgabenAmTag(d);
+                const gesamtAnzahl = tagesTermine.length + tagesAufgaben.length;
+                const sichtbareTermine = tagesTermine.slice(0, 3);
+                const restplatz = Math.max(3 - sichtbareTermine.length, 0);
+                const sichtbareAufgaben = tagesAufgaben.slice(0, restplatz);
+                const mehrAnzahl = gesamtAnzahl - sichtbareTermine.length - sichtbareAufgaben.length;
+
                 return (
                   <div
                     key={tagStr(d)}
@@ -414,16 +648,26 @@ export default function KalenderView({
                       {d.getDate()}
                     </div>
                     <div className="space-y-0.5">
-                      {tagesTermine.slice(0, 3).map((t) => {
+                      {sichtbareTermine.map((t) => {
                         const f = FARBEN[t.farbe] ?? FARBEN.blau;
                         return (
-                          <div key={t.id} className={`truncate rounded-[3px] border-l-[3px] ${f.kante} ${f.bg} px-1 text-[10px] ${f.text}`}>
+                          <div
+                            key={t.id}
+                            onClick={() => terminBearbeiten(t)}
+                            role="button"
+                            tabIndex={0}
+                            title="Klicken zum Bearbeiten"
+                            className={`cursor-pointer truncate rounded-[3px] border-l-[3px] ${f.kante} ${f.bg} px-1 text-[10px] ${f.text} hover:opacity-80`}
+                          >
                             {t.titel}
                           </div>
                         );
                       })}
-                      {tagesTermine.length > 3 && (
-                        <div className="text-[10px] text-[#94a3b8]">+{tagesTermine.length - 3} mehr</div>
+                      {sichtbareAufgaben.map((a) => (
+                        <AufgabenChip key={a.id} titel={a.titel} />
+                      ))}
+                      {mehrAnzahl > 0 && (
+                        <div className="text-[10px] text-[#94a3b8]">+{mehrAnzahl} mehr</div>
                       )}
                     </div>
                   </div>
