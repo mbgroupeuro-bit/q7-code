@@ -1,4 +1,4 @@
-// Basismodul "Meine Aufgaben" — Listen-Komponente (Client)
+﻿// Basismodul "Meine Aufgaben" — Listen-Komponente (Client)
 // Speicherort: D:\Projekt2027\Q7_Entwicklung\a_Q7-code\app\aufgaben\AufgabenListe.tsx
 //
 // Änderung (04.09.2026, 1): "+ Neue Aufgabe"-Formular um Priorität und
@@ -168,7 +168,7 @@ export default function AufgabenListe({ initialAufgaben }: { initialAufgaben: Me
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
-    await fetch("/api/meine-aufgaben", {
+    const res = await fetch("/api/meine-aufgaben", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -180,6 +180,11 @@ export default function AufgabenListe({ initialAufgaben }: { initialAufgaben: Me
       }),
     });
 
+    if (!res.ok) {
+      alert("Fehler: Aufgabe konnte nicht angelegt werden. Bitte erneut versuchen.");
+      return;
+    }
+
     setTitel("");
     setBeschreibung("");
     setNeuePrioritaet("");
@@ -190,11 +195,17 @@ export default function AufgabenListe({ initialAufgaben }: { initialAufgaben: Me
   }
 
   async function statusAendern(id: string, neuerStatus: AufgabenStatus) {
-    await fetch(`/api/meine-aufgaben/${id}`, {
+    const res = await fetch(`/api/meine-aufgaben/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: neuerStatus }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Status konnte nicht geaendert werden. Bitte erneut versuchen.");
+      return;
+    }
+
     startTransition(() => router.refresh());
   }
 
@@ -202,14 +213,20 @@ export default function AufgabenListe({ initialAufgaben }: { initialAufgaben: Me
     setOffenesMenuId(null);
     if (!confirm(`Aufgabe "${a.titel}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return;
 
-    await fetch(`/api/meine-aufgaben/${a.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/meine-aufgaben/${a.id}`, { method: "DELETE" });
+
+    if (!res.ok) {
+      alert("Fehler: Aufgabe konnte nicht geloescht werden. Bitte erneut versuchen.");
+      return;
+    }
+
     startTransition(() => router.refresh());
   }
 
   async function aufgabeDuplizieren(a: MeineAufgabe) {
     setOffenesMenuId(null);
 
-    await fetch("/api/meine-aufgaben", {
+    const res = await fetch("/api/meine-aufgaben", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -222,6 +239,11 @@ export default function AufgabenListe({ initialAufgaben }: { initialAufgaben: Me
       }),
     });
 
+    if (!res.ok) {
+      alert("Fehler: Aufgabe konnte nicht dupliziert werden. Bitte erneut versuchen.");
+      return;
+    }
+
     startTransition(() => router.refresh());
   }
 
@@ -229,11 +251,16 @@ export default function AufgabenListe({ initialAufgaben }: { initialAufgaben: Me
     setOffenesMenuId(null);
     setWeiterleitenOffenId(null);
 
-    await fetch(`/api/meine-aufgaben/${a.id}/weiterleiten`, {
+    const res = await fetch(`/api/meine-aufgaben/${a.id}/weiterleiten`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ an }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Aufgabe konnte nicht weitergeleitet werden. Bitte erneut versuchen.");
+      return;
+    }
 
     startTransition(() => router.refresh());
   }
