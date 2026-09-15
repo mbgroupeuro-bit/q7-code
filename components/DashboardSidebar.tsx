@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,12 +25,12 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Überblick", href: "/dashboard", icon: Home },
+  { label: "Ãœberblick", href: "/dashboard", icon: Home },
   { label: "Posteingang", href: "/posteingang", icon: Inbox, badge: 8 },
   { label: "Meine Aufgaben", href: "/aufgaben", icon: SquareCheck, badge: 12 },
   { label: "Kalender", href: "/kalender", icon: Calendar },
   { label: "Entwicklung", href: "/studio", icon: Star },
-  { label: "Arbeitsbereiche", href: "/spaces", icon: Package },
+  { label: "Projekte", href: "/projekte", icon: Package },
   { label: "Ausgabe", href: "/output", icon: FolderCheck },
   { label: "ERP", href: "/erp", icon: Building2, badgeLabel: "Neu" },
   { label: "Chronik", href: "/protokoll", icon: FileText },
@@ -107,3 +107,4 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     </aside>
   );
 }
+

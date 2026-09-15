@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -28,26 +28,26 @@ import { useMemo, useState } from "react";
 import { useCurrentRole, darfAdminKonsoleSehen } from "@/lib/auth";
 import { useAppState } from "@/lib/store";
 
-// Vereinte Version (04.08.2026): führt die ursprüngliche Sidebar (Chat-Liste,
-// Suche, Umbenennen/Löschen, Mobile-Drawer — siehe Q7_App_Umbau_Uebergabe.md)
+// Vereinte Version (04.08.2026): fÃ¼hrt die ursprÃ¼ngliche Sidebar (Chat-Liste,
+// Suche, Umbenennen/LÃ¶schen, Mobile-Drawer â€” siehe Q7_App_Umbau_Uebergabe.md)
 // mit dem neuen Navy/Gold-Design und der Dashboard-Navigation zusammen.
-// "Überblick" (/dashboard) ist neu und führt zur KPI-Startseite.
+// "Ãœberblick" (/dashboard) ist neu und fÃ¼hrt zur KPI-Startseite.
 //
 // Gruppe 1 = operative Kernpunkte, Gruppe 2 = Verwaltung. "badgeKey" verweist
-// auf ein Feld in useAppState() für Live-Zähler — Feldnamen ggf. an reales
+// auf ein Feld in useAppState() fÃ¼r Live-ZÃ¤hler â€” Feldnamen ggf. an reales
 // Store-Schema anpassen.
 //
-// Black-Box-Prinzip weiterhin gültig: "Agenten"-Menüpunkt bleibt entfernt,
-// Route /agenten bleibt im Code für möglichen späteren Admin-Debug-Zugriff.
+// Black-Box-Prinzip weiterhin gÃ¼ltig: "Agenten"-MenÃ¼punkt bleibt entfernt,
+// Route /agenten bleibt im Code fÃ¼r mÃ¶glichen spÃ¤teren Admin-Debug-Zugriff.
 const navGroups = [
   [
-    { href: "/dashboard", label: "Überblick", Icon: Home, adminOnly: false },
+    { href: "/dashboard", label: "Ãœberblick", Icon: Home, adminOnly: false },
     { href: "/posteingang", label: "Posteingang", Icon: Inbox, adminOnly: false, badgeKey: "ungeleseneInputs" as const },
     { href: "/aufgaben", label: "Meine Aufgaben", Icon: SquareCheck, adminOnly: false, badgeKey: "offeneAufgaben" as const },
     { href: "/chat", label: "Chat", Icon: MessageSquare, adminOnly: false },
     { href: "/kalender", label: "Kalender", Icon: Calendar, adminOnly: false },
     { href: "/studio", label: "Entwicklung", Icon: Code, adminOnly: false },
-    { href: "/spaces", label: "Arbeitsbereiche", Icon: Package, adminOnly: false },
+    { href: "/projekte", label: "Projekte", Icon: Package, adminOnly: false },
     { href: "/output", label: "Ausgabe", Icon: FolderCheck, adminOnly: false },
     { href: "/erp", label: "ERP", Icon: Building2, adminOnly: false, badgeLabel: "Neu" as const },
   ],
@@ -72,7 +72,7 @@ export default function Sidebar() {
     clearActiveChat,
     deleteChat,
     renameChat,
-    // Optionale Live-Zähler für Badges — Feldnamen an reales Store-Schema
+    // Optionale Live-ZÃ¤hler fÃ¼r Badges â€” Feldnamen an reales Store-Schema
     // anpassen, falls abweichend. Fallback auf 0, falls (noch) nicht vorhanden.
     ungeleseneInputs,
     offeneAufgaben,
@@ -115,7 +115,7 @@ export default function Sidebar() {
         <button
           className="ml-auto md:hidden text-[#C7CBDA]"
           onClick={() => setOpen(false)}
-          aria-label="Sidebar schließen"
+          aria-label="Sidebar schlieÃŸen"
         >
           <X size={20} />
         </button>
@@ -180,7 +180,7 @@ export default function Sidebar() {
                       renameChat(chat.id, umbenennenText);
                       setUmbenennenChatId(null);
                     }}
-                    aria-label="Umbenennen bestätigen"
+                    aria-label="Umbenennen bestÃ¤tigen"
                     className="flex-shrink-0 text-gold"
                   >
                     <Check size={15} />
@@ -214,7 +214,7 @@ export default function Sidebar() {
                   <span className="truncate">
                     {chat.titel}
                     {chat.titelStatus === "pending" && (
-                      <span className="ml-1 text-[10.5px] text-[#7C82A0]">···</span>
+                      <span className="ml-1 text-[10.5px] text-[#7C82A0]">Â·Â·Â·</span>
                     )}
                   </span>
                 </button>
@@ -266,7 +266,7 @@ export default function Sidebar() {
                       </button>
                       <button
                         onClick={() => {
-                          if (confirm(`Chat "${chat.titel}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) {
+                          if (confirm(`Chat "${chat.titel}" wirklich lÃ¶schen? Das kann nicht rÃ¼ckgÃ¤ngig gemacht werden.`)) {
                             deleteChat(chat.id);
                           }
                           setOffenesMenuChatId(null);
@@ -275,7 +275,7 @@ export default function Sidebar() {
                         className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] text-red-600 hover:bg-red-50"
                       >
                         <Trash2 size={13} />
-                        Löschen
+                        LÃ¶schen
                       </button>
                     </div>
                   </>
@@ -350,7 +350,7 @@ export default function Sidebar() {
       <button
         className="fixed left-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border border-[#22305A] bg-navy-dark text-white md:hidden"
         onClick={() => setOpen(true)}
-        aria-label="Menü öffnen"
+        aria-label="MenÃ¼ Ã¶ffnen"
       >
         <Menu size={18} />
       </button>
@@ -371,3 +371,4 @@ export default function Sidebar() {
     </>
   );
 }
+
