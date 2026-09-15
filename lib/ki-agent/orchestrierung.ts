@@ -1,4 +1,4 @@
-// Basismodul KI-Agent — Orchestrierung
+﻿// Basismodul KI-Agent — Orchestrierung
 // Speicherort in der Vorlage: D:\Projekt2027\Basismodule\KI-Agent\lib\ki-agent\orchestrierung.ts
 //
 // NEU (Fixrunde): Gemeinsame Werkzeug-Aufruf-Logik, die sowohl von der
@@ -115,7 +115,7 @@ export async function fuehreAgentAuftragAus(
   kontext: WerkzeugKontext
 ): Promise<string> {
   const model = modellFuerAgent(agentLabel);
-  const systemPrompt = `Du bist der Assistent im Q7 KI-Betriebssystem. Du führst gerade eine wiederkehrende, vom Mitarbeiter selbst eingerichtete Routine aus. Antworte klar, strukturiert und auf Deutsch. Bezeichne dich ausschließlich als "der Assistent".`;
+  const systemPrompt = `Du bist der Assistent im Q7 KI-Betriebssystem. Du führst gerade eine wiederkehrende, vom Mitarbeiter selbst eingerichtete Routine aus. Antworte klar, strukturiert und auf Deutsch. Antworte immer in der Ich-Form (z. B. "Ich fuehre..."), nie in der dritten Person.`;
   const werkzeugPrompt = baueWerkzeugPrompt(adapter.getWerkzeuge());
 
   const antwort = await rufeKIAn(model, systemPrompt + werkzeugPrompt, anweisung);
