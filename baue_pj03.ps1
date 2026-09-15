@@ -247,11 +247,11 @@ Write-Host "  -> app\projekte\actions.ts" -ForegroundColor Green
 Write-Host "`n=== 6) Detailseite ===" -ForegroundColor Cyan
 
 $detailPath = "app\projekte\[id]\page.tsx"
-if (Test-Path $detailPath) {
-    Write-Host "  Existiert bereits -> Vorschlag als page_VORSCHLAG.tsx daneben abgelegt, NICHT überschrieben." -ForegroundColor Yellow
+if (Test-Path -LiteralPath $detailPath) {
+    Write-Host "  Existiert bereits -> Vorschlag als page_VORSCHLAG.tsx daneben abgelegt, NICHT ueberschrieben." -ForegroundColor Yellow
     $detailTargetPath = "app\projekte\[id]\page_VORSCHLAG.tsx"
 } else {
-    New-Item -ItemType Directory -Force -Path "app\projekte\[id]" | Out-Null
+    New-Item -ItemType Directory -Force -Path "app\projekte\[id]" -ErrorAction SilentlyContinue | Out-Null
     $detailTargetPath = $detailPath
 }
 
@@ -308,7 +308,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     </div>
   );
 }
-'@ | Set-Content -Encoding UTF8 $detailTargetPath
+'@ | Set-Content -Encoding UTF8 -LiteralPath $detailTargetPath
 Write-Host "  -> $detailTargetPath" -ForegroundColor Green
 
 # ---------------------------------------------------------------------
