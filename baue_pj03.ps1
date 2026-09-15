@@ -10,12 +10,12 @@ Write-Host "=== 1) Git-Checkpoint ===" -ForegroundColor Cyan
 git add -A
 git commit -m "Checkpoint vor PJ-03 Aufbau (Projekte-UI)" --allow-empty
 
-Write-Host "`n=== 2) Ordner-Rename: arbeitsbereiche -> projekte ===" -ForegroundColor Cyan
-if (Test-Path "app\arbeitsbereiche") {
-    git mv app\arbeitsbereiche app\projekte
+Write-Host "`n=== 2) Ordner-Rename: spaces -> projekte ===" -ForegroundColor Cyan
+if (Test-Path "app\spaces") {
+    git mv app\spaces app\projekte
     Write-Host "  -> umbenannt (Git-Historie bleibt erhalten)" -ForegroundColor Green
 } else {
-    Write-Host "  WARNUNG: app\arbeitsbereiche nicht gefunden. Übersprungen." -ForegroundColor Red
+    Write-Host "  WARNUNG: app\spaces nicht gefunden. Uebersprungen." -ForegroundColor Red
 }
 
 Write-Host "`n=== 3) Komponenten-Ordner anlegen ===" -ForegroundColor Cyan
@@ -320,7 +320,7 @@ $navFiles = @("components\DashboardSidebar.tsx", "components\Sidebar.tsx")
 foreach ($f in $navFiles) {
     if (Test-Path $f) {
         $inhalt = Get-Content $f -Raw
-        $neu = $inhalt -replace "Arbeitsbereiche", "Projekte" -replace "/arbeitsbereiche", "/projekte"
+        $neu = $inhalt -replace "Arbeitsbereiche", "Projekte" -replace '"/spaces"', '"/projekte"'
         if ($neu -ne $inhalt) {
             Set-Content -Encoding UTF8 -Path $f -Value $neu
             Write-Host "  -> $f aktualisiert" -ForegroundColor Green
