@@ -32,3 +32,5 @@ git-status.txt
 storage/
 
 git-status.txt
+
+scripts/git-backup-log.txt
