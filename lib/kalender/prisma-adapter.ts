@@ -87,6 +87,42 @@ export const prismaKalenderAdapter: KalenderAdapter = {
     };
   },
 
+  async updateTermin(terminId, daten, mitarbeiterId) {
+    const mitarbeiter = await mitarbeiterLaden(mitarbeiterId);
+
+    const termin = await prisma.termin.findUnique({ where: { id: terminId } });
+    if (!termin) {
+      throw new Error("Termin nicht gefunden.");
+    }
+
+    if (!mitarbeiter.sieht_alle_bereiche && termin.bereich_id !== mitarbeiter.bereich_id) {
+      throw new Error("Kein Zugriff auf diesen Termin (anderer Bereich).");
+    }
+
+    const aktualisiert = await prisma.termin.update({
+      where: { id: terminId },
+      data: {
+        ...(daten.titel !== undefined && { titel: daten.titel.trim() }),
+        ...(daten.beschreibung !== undefined && { beschreibung: daten.beschreibung?.trim() || null }),
+        ...(daten.start !== undefined && { start: new Date(daten.start) }),
+        ...(daten.ende !== undefined && { ende: new Date(daten.ende) }),
+        ...(daten.farbe !== undefined && { farbe: daten.farbe }),
+      },
+      include: { bereich: true },
+    });
+
+    return {
+      id: aktualisiert.id,
+      titel: aktualisiert.titel,
+      beschreibung: aktualisiert.beschreibung,
+      start: aktualisiert.start.toISOString(),
+      ende: aktualisiert.ende.toISOString(),
+      farbe: aktualisiert.farbe,
+      bereich_id: aktualisiert.bereich_id,
+      bereich_name: aktualisiert.bereich.name,
+    };
+  },
+
   async deleteTermin(terminId, mitarbeiterId) {
     const mitarbeiter = await mitarbeiterLaden(mitarbeiterId);
 
