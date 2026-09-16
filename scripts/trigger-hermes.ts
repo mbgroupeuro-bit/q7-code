@@ -54,7 +54,7 @@ Konfidenz-Regeln:
 - rot: mehrdeutig, mehrere Interpretationen moeglich (z.B. koennte mehrere Abteilungen betreffen)`;
 
 async function main() {
-  const offeneTasks = await prisma.aufgabe.findMany({
+  const offeneTasks = await prisma.posteingangEintrag.findMany({
     where: { status: "OFFEN" },
   });
 
@@ -89,7 +89,7 @@ async function main() {
       // Konfidenz-Logik (aus P_0XX_A01_Kanal-Intake-Klassifikation_v1.0.md, Schritt 5.3)
       const neuerStatus = konfidenz === "gruen" ? "IN_BEARBEITUNG" : "RUECKFRAGE_ADMIN";
 
-      await prisma.aufgabe.update({
+      await prisma.posteingangEintrag.update({
         where: { id: task.id },
         data: {
           anliegen_typ: anliegenTyp,

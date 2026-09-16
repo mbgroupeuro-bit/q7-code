@@ -319,7 +319,7 @@ const autonomieAendernWerkzeug: WerkzeugDefinition<z.infer<typeof autonomieEinga
   },
 };
 
-export const WERKZEUGE: WerkzeugDefinition[] = [
+export const WERKZEUGE: WerkzeugDefinition<any>[] = [
   beispielWerkzeug,
   terminAnlegenWerkzeug,
   aufgabeAnlegenWerkzeug,

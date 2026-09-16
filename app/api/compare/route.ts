@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { AGENTS, STANDARD_VERGLEICHS_MODELLE } from "@/lib/types";
 import { rufeKIAn, pruefeMitA14 } from "@/lib/rufeKIAn";
 
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
   const ergebnisse = await Promise.all(
     modelListe.map(async (m) => {
       const antwort = await rufeKIAn(m, systemPrompt, userContent);
-      return { modell: antwort.modell, reply: antwort.reply, usage: antwort.usage };
+      return { modell: m, reply: antwort.reply, usage: antwort.usage };
     })
   );
 

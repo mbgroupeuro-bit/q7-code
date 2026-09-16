@@ -66,6 +66,11 @@ export interface ChatUsage {
   kostenUsd: number | null;
 }
 
+export interface KIAntwort {
+  reply: string;
+  usage: ChatUsage;
+}
+
 // Standard-Modelle für den Vergleichsmodus, falls in .env.local kein
 // OPENROUTER_COMPARE_MODELS gesetzt ist. Bewusst nur ein Fallback, keine
 // feste Vorgabe — überschreibbar ohne Code-Änderung.
