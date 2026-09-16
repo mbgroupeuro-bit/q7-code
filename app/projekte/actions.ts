@@ -9,19 +9,16 @@ import {
   kontextDateiEntfernen,
 } from "@/lib/projekt";
 
-// ANNAHME: exakte Signaturen (Parameter-Reihenfolge/-Namen) laut
-// lib/projekt.ts (9/9 getestet) â€” bitte gegen Original prÃ¼fen, falls
-// TypeScript-Fehler beim Build auftreten.
-
 export async function umbenennenAction(projektId: string, neuerName: string) {
-  await projektUmbenennen(projektId, neuerName);
+  await projektUmbenennen(projektId, { name: neuerName });
   revalidatePath(`/projekte/${projektId}`);
   revalidatePath("/projekte");
 }
 
-export async function anheftenAction(projektId: string) {
-  await projektAnheften(projektId);
+export async function anheftenAction(projektId: string, angeheftet: boolean) {
+  await projektAnheften(projektId, angeheftet);
   revalidatePath("/projekte");
+  revalidatePath(`/projekte/${projektId}`);
 }
 
 export async function loeschenAction(projektId: string) {
@@ -34,7 +31,7 @@ export async function kontextHinzufuegenAction(projektId: string, ablageId: stri
   revalidatePath(`/projekte/${projektId}`);
 }
 
-export async function kontextEntfernenAction(projektId: string, dateiId: string) {
-  await kontextDateiEntfernen(projektId, dateiId);
+export async function kontextEntfernenAction(projektId: string, kontextDateiId: string) {
+  await kontextDateiEntfernen(kontextDateiId);
   revalidatePath(`/projekte/${projektId}`);
 }
