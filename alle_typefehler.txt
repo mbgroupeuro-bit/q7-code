@@ -1,0 +1,45 @@
+﻿app/api/termine/[id]/route.ts(17,15): error TS2305: Module '"@/lib/kalender/adapter-interface"' has no exported member 'TerminAktualisieren'.
+app/api/termine/[id]/route.ts(38,62): error TS2339: Property 'updateTermin' does not exist on type 'KalenderAdapter'.
+app/projekte/[id]/page.tsx(34,11): error TS2322: Type 'Date | null' is not assignable to type 'string | null'.
+  Type 'Date' is not assignable to type 'string'.
+app/projekte/[id]/page.tsx(39,11): error TS2322: Type '{ id: string; projekt_id: string; ablage_id: string; hinzugefuegt_am: Date; }[]' is not assignable to type 'KontextDatei[]'.
+  Type '{ id: string; projekt_id: string; ablage_id: string; hinzugefuegt_am: Date; }' is missing the following properties from type 'KontextDatei': name, typ, hochgeladenAm
+app/projekte/actions.ts(17,38): error TS2559: Type 'string' has no properties in common with type 'ProjektUmbenennenEingabe'.
+app/projekte/actions.ts(23,9): error TS2554: Expected 2 arguments, but got 1.
+app/projekte/actions.ts(38,42): error TS2554: Expected 1 arguments, but got 2.
+lib/adapter-interface.ts(13,46): error TS2307: Cannot find module './typen' or its corresponding type declarations.
+lib/ki-agent/werkzeuge.ts(323,3): error TS2322: Type 'WerkzeugDefinition<{ zeitraum: "heute" | "diese_woche" | "dieser_monat"; }>' is not assignable to type 'WerkzeugDefinition<unknown>'.
+  Types of property 'lesen' are incompatible.
+    Type '((eingabe: { zeitraum: "heute" | "diese_woche" | "dieser_monat"; }, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>) | undefined' is not assignable to type '((eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>) | undefined'.
+      Type '(eingabe: { zeitraum: "heute" | "diese_woche" | "dieser_monat"; }, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>' is not assignable to type '(eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>'.
+        Types of parameters 'eingabe' and 'eingabe' are incompatible.
+          Type 'unknown' is not assignable to type '{ zeitraum: "heute" | "diese_woche" | "dieser_monat"; }'.
+lib/ki-agent/werkzeuge.ts(324,3): error TS2322: Type 'WerkzeugDefinition<{ titel: string; start: string; ende: string; beschreibung?: string | undefined; }>' is not assignable to type 'WerkzeugDefinition<unknown>'.
+  Types of property 'lesen' are incompatible.
+    Type '((eingabe: { titel: string; start: string; ende: string; beschreibung?: string | undefined; }, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>) | undefined' is not assignable to type '((eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>) | undefined'.
+      Type '(eingabe: { titel: string; start: string; ende: string; beschreibung?: string | undefined; }, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>' is not assignable to type '(eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>'.
+        Types of parameters 'eingabe' and 'eingabe' are incompatible.
+          Type 'unknown' is not assignable to type '{ titel: string; start: string; ende: string; beschreibung?: string | undefined; }'.
+lib/ki-agent/werkzeuge.ts(325,3): error TS2322: Type 'WerkzeugDefinition<{ titel: string; beschreibung?: string | undefined; faelligkeit?: string | undefined; prioritaet?: "niedrig" | "normal" | "hoch" | undefined; }>' is not assignable to type 'WerkzeugDefinition<unknown>'.
+  Types of property 'lesen' are incompatible.
+    Type '((eingabe: { titel: string; beschreibung?: string | undefined; faelligkeit?: string | undefined; prioritaet?: "niedrig" | "normal" | "hoch" | undefined; }, kontext: WerkzeugKontext) => Promise<...>) | undefined' is not assignable to type '((eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>) | undefined'.
+      Type '(eingabe: { titel: string; beschreibung?: string | undefined; faelligkeit?: string | undefined; prioritaet?: "niedrig" | "normal" | "hoch" | undefined; }, kontext: WerkzeugKontext) => Promise<...>' is not assignable to type '(eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>'.
+        Types of parameters 'eingabe' and 'eingabe' are incompatible.
+          Type 'unknown' is not assignable to type '{ titel: string; beschreibung?: string | undefined; faelligkeit?: string | undefined; prioritaet?: "niedrig" | "normal" | "hoch" | undefined; }'.
+lib/ki-agent/werkzeuge.ts(326,3): error TS2322: Type 'WerkzeugDefinition<{ titel: string; volltext: string; }>' is not assignable to type 'WerkzeugDefinition<unknown>'.
+  Types of property 'lesen' are incompatible.
+    Type '((eingabe: { titel: string; volltext: string; }, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>) | undefined' is not assignable to type '((eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>) | undefined'.
+      Type '(eingabe: { titel: string; volltext: string; }, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>' is not assignable to type '(eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>'.
+        Types of parameters 'eingabe' and 'eingabe' are incompatible.
+          Type 'unknown' is not assignable to type '{ titel: string; volltext: string; }'.
+lib/ki-agent/werkzeuge.ts(327,3): error TS2322: Type 'WerkzeugDefinition<{ stufe: "keine" | "teil" | "komplett"; werkzeugIds?: string[] | undefined; }>' is not assignable to type 'WerkzeugDefinition<unknown>'.
+  Types of property 'lesen' are incompatible.
+    Type '((eingabe: { stufe: "keine" | "teil" | "komplett"; werkzeugIds?: string[] | undefined; }, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>) | undefined' is not assignable to type '((eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>) | undefined'.
+      Type '(eingabe: { stufe: "keine" | "teil" | "komplett"; werkzeugIds?: string[] | undefined; }, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>' is not assignable to type '(eingabe: unknown, kontext: WerkzeugKontext) => Promise<WerkzeugLeseErgebnis>'.
+        Types of parameters 'eingabe' and 'eingabe' are incompatible.
+          Type 'unknown' is not assignable to type '{ stufe: "keine" | "teil" | "komplett"; werkzeugIds?: string[] | undefined; }'.
+lib/rufeKIAn.ts(14,10): error TS2305: Module '"./types"' has no exported member 'KIAntwort'.
+prisma.config.ts(18,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+scripts/trigger-hermes.ts(57,36): error TS2339: Property 'aufgabe' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+scripts/trigger-hermes.ts(92,20): error TS2339: Property 'aufgabe' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.

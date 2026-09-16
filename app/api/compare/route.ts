@@ -95,10 +95,12 @@ export async function POST(req: NextRequest) {
 
   const ergebnisse = await Promise.all(
     modelListe.map(async (m) => {
-      const antwort = await rufeKIAn(apiKey, m, systemPrompt, userContent, "Q7 KI-Betriebssystem — Vergleich");
+      const antwort = await rufeKIAn(m, systemPrompt, userContent);
       return { modell: antwort.modell, reply: antwort.reply, usage: antwort.usage };
     })
   );
 
   return NextResponse.json({ agentLabel: ASSISTENT_LABEL, ergebnisse });
 }
+
+
