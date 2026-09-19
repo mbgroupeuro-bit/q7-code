@@ -219,11 +219,16 @@ export default function AufgabeDetail({
   }
 
   async function teilaufgabeStatusWechseln(teilaufgabe: Teilaufgabe) {
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}/teilaufgaben/${teilaufgabe.id}`, {
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}/teilaufgaben/${teilaufgabe.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: teilaufgabe.status === "offen" ? "erledigt" : "offen" }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Status konnte nicht geaendert werden. Bitte erneut versuchen.");
+      return;
+    }
     startTransition(() => router.refresh());
   }
 
