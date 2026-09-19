@@ -1,13 +1,36 @@
 ﻿"use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
+  projektErstellen,
   projektUmbenennen,
   projektAnheften,
   projektLoeschen,
   kontextDateiHinzufuegen,
   kontextDateiEntfernen,
 } from "@/lib/projekt";
+import { pruefeAgentZugriff } from "@/lib/ki-agent/rollen-check";
+
+export async function erstellenAction(formData: FormData) {
+  const zugriff = await pruefeAgentZugriff();
+  if (!zugriff.erlaubt || !zugriff.kontext) {
+    throw new Error("Kein Zugriff auf Projekte.");
+  }
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) {
+    throw new Error("Projektname darf nicht leer sein.");
+  }
+
+  const projekt = await projektErstellen({
+    mitarbeiterId: zugriff.kontext.mitarbeiterId,
+    name,
+  });
+
+  revalidatePath("/projekte");
+  redirect(`/projekte/${projekt.id}`);
+}
 
 export async function umbenennenAction(projektId: string, neuerName: string) {
   await projektUmbenennen(projektId, { name: neuerName });

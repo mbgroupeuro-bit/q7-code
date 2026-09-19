@@ -12,9 +12,10 @@ if %errorlevel%==0 (
 ) else (
     git commit -m "Automatisches Backup %date% %time%" >> scripts\git-backup-log.txt
 )
+git push origin HEAD >> scripts\git-backup-log.txt 2>&1
 
 REM ---------- 2. Q7-ERP ----------
-cd /d D:\Projekt2027\Q7-ERP_Entwicklung
+cd /d "D:\Projekt2027\ERP System"
 if not exist ".git" (
     echo %date% %time% - Kein Git-Repo gefunden, initialisiere neu. >> git-backup-log.txt
     git init
@@ -37,6 +38,7 @@ if not exist ".git" (
         git commit -m "Automatisches Backup %date% %time%" >> git-backup-log.txt
     )
 )
+REM Kein Push fuer ERP - bleibt lokal-only (Entscheidung 19.09.2026)
 
 REM ---------- 3. Q7-Doku ----------
 cd /d D:\Projekt2027\Q7_Entwicklung\b_Q7-doku
@@ -57,5 +59,6 @@ if not exist ".git" (
         git commit -m "Automatisches Backup %date% %time%" >> git-backup-log.txt
     )
 )
+git push origin HEAD >> git-backup-log.txt 2>&1
 
 echo ===== Q7 Gesamt-Backup fertig: %date% %time% =====
