@@ -105,38 +105,62 @@ export default function AufgabeDetail({
   const aufgabe = initialAufgabe;
 
   async function statusAendern(neuerStatus: AufgabenStatus) {
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}`, {
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: neuerStatus }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Status konnte nicht geaendert werden. Bitte erneut versuchen.");
+      return;
+    }
+
     startTransition(() => router.refresh());
   }
 
   async function prioritaetAendern(neuePrioritaet: Prioritaet) {
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}`, {
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prioritaet: neuePrioritaet }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Prioritaet konnte nicht geaendert werden. Bitte erneut versuchen.");
+      return;
+    }
+
     startTransition(() => router.refresh());
   }
 
   async function farbeAendern(neueFarbe: string) {
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}`, {
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ farbe: neueFarbe }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Farbe konnte nicht geaendert werden. Bitte erneut versuchen.");
+      return;
+    }
+
     startTransition(() => router.refresh());
   }
 
   async function tagsAktualisieren(neueTags: string[]) {
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}`, {
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tags: neueTags }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Tags konnten nicht aktualisiert werden. Bitte erneut versuchen.");
+      return;
+    }
+
     startTransition(() => router.refresh());
   }
 
@@ -158,7 +182,7 @@ export default function AufgabeDetail({
   async function weiterleiten(an: string) {
     if (!an || an === aufgabe.zugewiesen_an) return;
 
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}/weiterleiten`, {
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}/weiterleiten`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -166,6 +190,11 @@ export default function AufgabeDetail({
         kommentar: weiterleitungKommentar.trim() || undefined,
       }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Aufgabe konnte nicht weitergeleitet werden. Bitte erneut versuchen.");
+      return;
+    }
 
     setWeiterleitungKommentar("");
     startTransition(() => router.refresh());
@@ -175,7 +204,7 @@ export default function AufgabeDetail({
     e.preventDefault();
     if (!terminStart || !terminEnde) return;
 
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}/termin`, {
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}/termin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -183,6 +212,11 @@ export default function AufgabeDetail({
         ende: new Date(terminEnde).toISOString(),
       }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Termin konnte nicht angefragt werden. Bitte erneut versuchen.");
+      return;
+    }
 
     setTerminStart("");
     setTerminEnde("");
@@ -194,11 +228,16 @@ export default function AufgabeDetail({
     e.preventDefault();
     if (!kommentar.trim()) return;
 
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}/verlauf`, {
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}/verlauf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: kommentar }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Kommentar konnte nicht gespeichert werden. Bitte erneut versuchen.");
+      return;
+    }
 
     setKommentar("");
     startTransition(() => router.refresh());
@@ -208,11 +247,16 @@ export default function AufgabeDetail({
     e.preventDefault();
     if (!neueTeilaufgabe.trim()) return;
 
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}/teilaufgaben`, {
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}/teilaufgaben`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ titel: neueTeilaufgabe }),
     });
+
+    if (!res.ok) {
+      alert("Fehler: Teilaufgabe konnte nicht angelegt werden. Bitte erneut versuchen.");
+      return;
+    }
 
     setNeueTeilaufgabe("");
     startTransition(() => router.refresh());
@@ -229,6 +273,7 @@ export default function AufgabeDetail({
       alert("Fehler: Status konnte nicht geaendert werden. Bitte erneut versuchen.");
       return;
     }
+
     startTransition(() => router.refresh());
   }
 
@@ -264,7 +309,14 @@ export default function AufgabeDetail({
 
   async function anhangLoeschen(anhangId: string) {
     if (!confirm("Anhang wirklich löschen?")) return;
-    await fetch(`/api/meine-aufgaben/${aufgabe.id}/anhaenge/${anhangId}`, { method: "DELETE" });
+
+    const res = await fetch(`/api/meine-aufgaben/${aufgabe.id}/anhaenge/${anhangId}`, { method: "DELETE" });
+
+    if (!res.ok) {
+      alert("Fehler: Anhang konnte nicht geloescht werden. Bitte erneut versuchen.");
+      return;
+    }
+
     startTransition(() => router.refresh());
   }
 
