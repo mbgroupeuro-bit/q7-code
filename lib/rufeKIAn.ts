@@ -11,7 +11,7 @@
 //      pruefeMitA14 (kontext === "Output-Gate" o.ä.) bleiben unverändert
 //      fail-closed wie bisher.
 
-import { KIAntwort } from "./types";
+import { KIAntwort, AGENTS } from "./types";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -37,9 +37,24 @@ const FALLBACK_MODEL_STANDARD = "anthropic/claude-sonnet-5";
 const FALLBACK_MODEL_A14 = "anthropic/claude-haiku-4.5";
 
 export function modellFuerAgent(agentKuerzelOderLabel: string): string {
+  const agent =
+    AGENTS.find((a) => agentKuerzelOderLabel === a.kuerzel) ??
+    AGENTS.find((a) => agentKuerzelOderLabel.includes(a.kuerzel));
+
+  if (agent) {
+    const spezifischesModell = process.env[`OPENROUTER_MODEL_${agent.kuerzel}`];
+    if (spezifischesModell) {
+      console.log(`[modellFuerAgent] ${agent.kuerzel} -> ${spezifischesModell}`);
+      return spezifischesModell;
+    }
+  }
+
+  // Rückwärtskompatibel: bisheriger A14-Sonderfall (greift, wenn kein exaktes
+  // AGENTS-Kürzel gefunden wurde, aber das Label "A14" enthält).
   if (agentKuerzelOderLabel.includes("A14")) {
     return process.env.OPENROUTER_MODEL_A14 || process.env.OPENROUTER_MODEL || FALLBACK_MODEL_A14;
   }
+
   return process.env.OPENROUTER_MODEL || FALLBACK_MODEL_STANDARD;
 }
 
