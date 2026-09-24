@@ -12,7 +12,13 @@ if %errorlevel%==0 (
 ) else (
     git commit -m "Automatisches Backup %date% %time%" >> scripts\git-backup-log.txt
 )
-git push origin HEAD >> scripts\git-backup-log.txt 2>&1
+REM --- NEU: Sicherer Pull vor dem Push (bricht sauber ab, ueberschreibt nie) ---
+git pull --ff-only >> scripts\git-backup-log.txt 2>&1
+if !errorlevel!==0 (
+    git push origin HEAD >> scripts\git-backup-log.txt 2>&1
+) else (
+    echo %date% %time% - Q7-Code: ACHTUNG - Pull nicht moeglich (Remote ist neuer/abweichend). Push uebersprungen, lokaler Commit bleibt erhalten. Bitte manuell pruefen. >> scripts\git-backup-log.txt
+)
 
 REM ---------- 2. Q7-ERP ----------
 cd /d "D:\Projekt2027\ERP System"
@@ -59,6 +65,12 @@ if not exist ".git" (
         git commit -m "Automatisches Backup %date% %time%" >> git-backup-log.txt
     )
 )
-git push origin HEAD >> git-backup-log.txt 2>&1
+REM --- NEU: Sicherer Pull vor dem Push (bricht sauber ab, ueberschreibt nie) ---
+git pull --ff-only >> git-backup-log.txt 2>&1
+if !errorlevel!==0 (
+    git push origin HEAD >> git-backup-log.txt 2>&1
+) else (
+    echo %date% %time% - Doku: ACHTUNG - Pull nicht moeglich (Remote ist neuer/abweichend). Push uebersprungen, lokaler Commit bleibt erhalten. Bitte manuell pruefen. >> git-backup-log.txt
+)
 
 echo ===== Q7 Gesamt-Backup fertig: %date% %time% =====
