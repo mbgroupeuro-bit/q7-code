@@ -34,3 +34,5 @@ storage/
 git-status.txt
 
 scripts/git-backup-log.txt
+tsconfig.tsbuildinfo
+/git-backup-log.txt
